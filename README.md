@@ -42,7 +42,6 @@ route is deliberately narrow. On what generalises from it, see
 -->
 
 ## The number you cannot normally get
-<img width="1472" height="902" alt="menu" src="https://github.com/user-attachments/assets/4115adc0-be8a-4c58-9ddd-67a90840ccda" />
 <img width="1470" height="750" alt="paljonko porukan yhteistulos on nyt" src="https://github.com/user-attachments/assets/16fb510c-a10a-48df-b5da-c50623174761" />
 
 Four lifters share a goal: **600 kg of combined one-rep max**. The metric says
