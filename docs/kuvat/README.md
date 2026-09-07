@@ -1,7 +1,15 @@
 # Kuvakaappaukset
 
-Pudota kuvat tähän kansioon näillä nimillä. README:ssä on valmiit kohdat
-merkittynä `<!-- KUVA: ... -->` — poista kommenttimerkit, niin kuva ilmestyy.
+## Kaksi tapaa, kumpikin kelpaa
+
+**1. Raahaa GitHubin editoriin.** Avaa README GitHubissa, klikkaa kynää, raahaa
+kuva tekstiin. GitHub tallentaa sen itse ja kirjoittaa `<img>`-tagin. Nopein, ja
+tätä kansiota ei tarvita lainkaan. Repon banneri on tehty näin.
+
+**2. Committoi kuva tähän kansioon.** Kuva on repossa, eikä se katoa jos
+GitHubin liitepalvelu joskus muuttuu. Käytä alla olevia nimiä; README:ssä on
+valmiit kohdat merkittynä `<!-- KUVA: ... -->`, joista poistetaan
+kommenttimerkit.
 
 Kunnes kuva on olemassa, sen paikka on kommentoituna. Rikkinäinen kuvake
 README:ssä näyttää huolimattomalta, joten mikään ei osoita tiedostoon, jota
