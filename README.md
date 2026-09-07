@@ -137,7 +137,8 @@ are real. [docs/rajaus.md](docs/rajaus.md).
 ## Run it
 
 ```bash
-python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
+python -m venv .venv
+.venv/Scripts/pip install -e ".[dev]"     # Linux/macOS: .venv/bin/pip
 python warehouse/build.py
 python -m nlq.cli                              # interactive session
 python -m nlq.cli --list                       # one line per metric

@@ -16,11 +16,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from nlq import ask as ask_mod
 from semantic import catalog as catalog_mod
+
+REPO = Path(__file__).resolve().parent.parent
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,7 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    load_dotenv()
+    # Explicit path, not a search from the working directory. Otherwise
+    # running from elsewhere finds no key and silently falls back to the
+    # rule router -- and which model answered would depend on where the
+    # reader happened to be standing.
+    load_dotenv(REPO / ".env")
     ap = argparse.ArgumentParser(prog="nlq", description="Governed NLQ over a locked metric catalogue")
     ap.add_argument("question", nargs="?", help="Question in plain language")
     ap.add_argument("--router", default=None,
