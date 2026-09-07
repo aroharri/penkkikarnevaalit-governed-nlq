@@ -1,4 +1,5 @@
 # penkkikarnevaalit-governed-nlq
+<img width="1024" height="559" alt="poh" src="https://github.com/user-attachments/assets/07ec0d94-aae4-4426-90ee-bb6e25772cab" />
 
 **Governed natural-language querying over a locked metric catalogue.**
 
