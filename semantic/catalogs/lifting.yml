@@ -1,0 +1,269 @@
+# THE LOCK.
+#
+# This file is the only place a metric formula exists. The warehouse stores
+# facts; nothing downstream computes a number that is not defined here. Delete
+# this file and every query fails -- tests/test_catalog_is_lock.py proves it.
+#
+# The catalogue is deliberately dumb. A metric is an aggregate of a column, or
+# an arithmetic combination of two such aggregates. There is no escape hatch
+# for free SQL. A number that cannot be expressed this way does not belong
+# here; it is ad hoc analysis and is labelled as such.
+#
+# Named after the domain, not the crew: the file describes bench-press
+# progress, not one particular group of four people.
+
+version: 1
+dataset: lifting
+label: "Penkkipunnerruksen 1RM-kehitys"
+
+# ---------------------------------------------------------------------------
+# Base relations. Every measure names the one it reads.
+#
+# Two measures may only be combined when they share a base, because that is
+# what guarantees their rows line up. Mixing bases of different grain is the
+# classic fan-out bug: join one row to many and the sum silently doubles.
+# The loader rejects it rather than producing a plausible wrong number.
+# ---------------------------------------------------------------------------
+bases:
+  member_current:
+    grain: [challenge_id, lifter_id]
+    description: >
+      One row per challenge member, carrying their most recent logged set.
+      A member who has never logged anything still gets a row, with a null
+      1RM -- they must not vanish from the member count.
+    sql: |
+      select
+          m.challenge_id,
+          m.lifter_id,
+          l.lifter_name,
+          m.target_1rm_kg,
+          c.goal_total_1rm_kg,
+          f.one_rm_kg,
+          f.one_rm_source,
+          f.lift_date
+      from bridge_memberships m
+      join dim_lifters l on l.lifter_id = m.lifter_id
+      join dim_challenges c on c.challenge_id = m.challenge_id
+      left join fct_latest_lift f on f.lifter_id = m.lifter_id
+
+  member_lifts:
+    grain: [challenge_id, lifter_id, lift_id]
+    description: >
+      One row per logged set, scoped to the challenge its lifter belongs to.
+      LEFT joined on purpose: a member who has logged nothing keeps a row with
+      a null lift, so they appear in a count as zero rather than disappearing
+      from the result. A member missing from a list reads as "not asked about";
+      a member showing 0 reads as "asked, and the answer is none".
+    sql: |
+      select
+          m.challenge_id,
+          m.lifter_id,
+          l.lifter_name,
+          f.lift_id,
+          f.lift_date,
+          f.weight_kg,
+          f.reps,
+          f.one_rm_kg,
+          f.one_rm_source
+      from bridge_memberships m
+      join dim_lifters l on l.lifter_id = m.lifter_id
+      left join fct_lifts f on f.lifter_id = m.lifter_id
+
+# ---------------------------------------------------------------------------
+# Entities: the things a question can name, and where their names live.
+# Matching is exact and case-insensitive. There is no fuzzy matching, because
+# a near miss must fail loudly rather than quietly resolve to the wrong person.
+# ---------------------------------------------------------------------------
+entities:
+  challenge:
+    table: dim_challenges
+    key: challenge_id
+    label_column: challenge_name
+  lifter:
+    table: dim_lifters
+    key: lifter_id
+    label_column: lifter_name
+
+dimensions:
+  lifter:
+    column: lifter_name
+    label: "Nostaja"
+  one_rm_source:
+    column: one_rm_source
+    label: "Oikea vai laskennallinen ykkosmaksimi"
+    values:
+      true_max: "Oikea ykkosmaksimi -- yhden toiston nosto, havainto"
+      brzycki_estimate: "Laskennallinen ykkosmaksimi -- Brzycki-arvio useammasta toistosta"
+
+measures:
+  latest_1rm_kg:  { base: member_current, column: one_rm_kg,         agg: sum }
+  target_1rm_kg:  { base: member_current, column: target_1rm_kg,     agg: sum }
+  goal_total_kg:  { base: member_current, column: goal_total_1rm_kg, agg: max }
+  member_count:   { base: member_current, column: lifter_id,         agg: count }
+  # window_column makes the time window a filter on the AGGREGATE, not on the
+  # rows. Filtering rows would drop members with no lifts in the window --
+  # they would vanish instead of showing zero.
+  session_count:  { base: member_lifts,   column: lift_id,           agg: count, window_column: lift_date }
+
+# ---------------------------------------------------------------------------
+# Metrics. Every one declares scope: challenge.
+#
+# Scope is not a convenience filter, it is a reporting boundary. Without it a
+# query reaches across challenges and reports another group's numbers to this
+# group's readers. semantic/catalog.py refuses to emit SQL without the scope
+# predicate, so forgetting it is impossible rather than merely discouraged.
+#
+# Grain is part of the metric NAME (crew_ / lifter_) rather than a free
+# parameter. Slightly redundant by semantic-layer purism, but it means a
+# citation can never be read at the wrong level by accident.
+# ---------------------------------------------------------------------------
+metrics:
+
+  crew_total_1rm_kg:
+    label: "Porukan yhteistulos (1RM)"
+    kind: measure
+    measure: latest_1rm_kg
+    scope: challenge
+    grain: challenge
+    unit: kg
+    allowed_dimensions: [lifter, one_rm_source]
+    note: >
+      Sum of each member's most recent logged set, computed from source data
+      with Brzycki -- NOT read from the app's stored estimated_1rm field. Two
+      numbers existed; this catalogue picks one and says which. A one-rep set
+      is a real max; anything with more reps is an estimate. Sets outside
+      1-12 reps are excluded, because Brzycki is unreliable beyond that.
+    examples:
+      - "Paljonko porukan yhteistulos on nyt?"
+      - "Mika on ryhman yhteenlaskettu ykkosmaksimi?"
+      - "Montako kiloa porukka nostaa yhteensa?"
+
+  crew_goal_kg:
+    label: "Haasteen tavoite"
+    kind: measure
+    measure: goal_total_kg
+    scope: challenge
+    grain: challenge
+    unit: kg
+    allowed_dimensions: []
+    note: >
+      The challenge's own goal figure. A second, competing number exists: the
+      sum of the members' personal targets (crew_member_target_sum_kg). The app
+      falls back from one to the other. This catalogue keeps both as named
+      metrics so nobody has to guess which one a report meant.
+    examples:
+      - "Mika on haasteen tavoite?"
+      - "Paljonko tavoite on?"
+
+  crew_member_target_sum_kg:
+    label: "Jasenten omien tavoitteiden summa"
+    kind: measure
+    measure: target_1rm_kg
+    scope: challenge
+    grain: challenge
+    unit: kg
+    allowed_dimensions: [lifter]
+    note: >
+      The other candidate denominator. Deliberately a separate metric from
+      crew_goal_kg: they are not the same number, and neither is hidden behind
+      the other.
+    examples:
+      - "Paljonko jasenten omat tavoitteet ovat yhteensa?"
+
+  crew_goal_gap_kg:
+    label: "Paljonko tavoitteesta puuttuu"
+    kind: difference
+    minuend: goal_total_kg
+    subtrahend: latest_1rm_kg
+    scope: challenge
+    grain: challenge
+    unit: kg
+    allowed_dimensions: []
+    note: "Haasteen tavoite miinus jasenten viimeisimpien 1RM-tulosten summa."
+    examples:
+      - "Paljonko porukalta puuttuu tavoitteesta?"
+      - "Kuinka kaukana 600 kilosta ollaan?"
+      - "Montako kiloa viela tarvitaan?"
+
+  crew_goal_fill_pct:
+    label: "Tavoitetayttoprosentti"
+    kind: ratio
+    numerator: latest_1rm_kg
+    denominator: goal_total_kg
+    scope: challenge
+    grain: challenge
+    unit: pct
+    allowed_dimensions: []
+    note: >
+      NON-ADDITIVE. Defined as SUM(latest) / MAX(goal) and recomputed at
+      whatever level it is read. Never stored as a column, because a stored
+      percentage is locked to one grain: the average of per-member percentages
+      is not the crew percentage. See docs/oikea-vs-laskennallinen.md.
+    examples:
+      - "Kuinka monta prosenttia tavoitteesta on saavutettu?"
+      - "Onko haaste jo puolivalissa?"
+
+  crew_target_fill_pct:
+    label: "Tayttoaste jasenten omista tavoitteista"
+    kind: ratio
+    numerator: latest_1rm_kg
+    denominator: target_1rm_kg
+    scope: challenge
+    grain: challenge
+    unit: pct
+    allowed_dimensions: []
+    note: >
+      NON-ADDITIVE, and the clearest case of why. Defined as
+      SUM(latest) / SUM(target). The average of the members' individual
+      percentages is a DIFFERENT and wrong number, because it weights a small
+      target the same as a large one. tests/test_metrics_math.py asserts the
+      two differ, so the claim is proven rather than asserted.
+    examples:
+      - "Kuinka suuri osa jasenten omista tavoitteista on saavutettu?"
+      - "Paljonko omista tavoitteista on tayttynyt?"
+
+  lifter_current_1rm_kg:
+    label: "Nostajan nykyinen 1RM"
+    kind: measure
+    measure: latest_1rm_kg
+    scope: challenge
+    grain: lifter
+    unit: kg
+    allowed_dimensions: [one_rm_source]
+    note: >
+      The lifter's most recent logged set, not their all-time best. A lifter
+      whose numbers have fallen should show the fall.
+    examples:
+      - "Mika on Iiriksen nykyinen ykkosmaksimi?"
+      - "Paljonko Onni nostaa nyt?"
+
+  lifter_target_gap_kg:
+    label: "Paljonko nostajalta puuttuu omaan tavoitteeseen"
+    kind: difference
+    minuend: target_1rm_kg
+    subtrahend: latest_1rm_kg
+    scope: challenge
+    grain: lifter
+    unit: kg
+    allowed_dimensions: []
+    note: "Nostajan oma tavoite miinus hanen viimeisin 1RM-tuloksensa."
+    examples:
+      - "Paljonko Helmilta puuttuu omaan tavoitteeseen?"
+      - "Kuinka kaukana Toivo on tavoitteestaan?"
+
+  lifter_sessions_last_n_days:
+    label: "Nostajan treenikerrat viimeisen n paivan aikana"
+    kind: measure
+    measure: session_count
+    scope: challenge
+    grain: lifter
+    unit: count
+    allowed_dimensions: []
+    requires_params: [days]
+    note: >
+      Counts logged sets, not distinct training days. Requires an explicit
+      window: without one the number means nothing, so the question is asked
+      rather than a default quietly assumed.
+    examples:
+      - "Montako kertaa Iiris on treenannut viimeisen 30 paivan aikana?"
+      - "Kuinka aktiivinen Onni on ollut viime kuukautena?"

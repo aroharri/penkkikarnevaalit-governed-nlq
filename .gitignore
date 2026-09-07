@@ -1,0 +1,16 @@
+# Warehouse is a build artefact — rebuild it with `python warehouse/build.py`
+*.duckdb
+*.duckdb.wal
+
+# Secrets
+.env
+
+# The pseudonym mapping. Committing this would undo the pseudonymisation.
+tools/pseudonym_map.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/

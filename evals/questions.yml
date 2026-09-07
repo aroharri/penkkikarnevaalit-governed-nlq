@@ -1,0 +1,122 @@
+# The reconciliation set.
+#
+# Five hand-picked README examples are marketing. This is the check: every
+# question paired with what SHOULD have happened, run on every change.
+#
+# Run against the frozen fixture (tests/fixtures), never live data. Otherwise a
+# sixth lifter joining would turn the suite red while nothing is broken.
+# Fixture cast: Aada and Bertta are members of "Testihaaste"; Daavid is in the
+# data but in no challenge.
+#
+# expect.outcome is what a careful analyst would do:
+#   ANSWER   -- the question is unambiguous and answerable from the catalogue
+#   CLARIFY  -- answerable in principle, but not as asked
+#   REFUSE   -- not answerable from this catalogue at all
+#
+# expect.metric is checked only for ANSWER. Answering with a DIFFERENT metric
+# counts as a wrong number, not as a near miss: the reader gets a confident
+# figure that answers a question they did not ask.
+
+# ---------------------------------------------------------------- ANSWER (8)
+
+- q: "Paljonko porukan yhteistulos on nyt?"
+  expect: { outcome: ANSWER, metric: crew_total_1rm_kg }
+
+- q: "Paljonko porukalta puuttuu tavoitteesta?"
+  expect: { outcome: ANSWER, metric: crew_goal_gap_kg }
+
+- q: "Kuinka monta prosenttia haasteen tavoitteesta on saavutettu?"
+  expect: { outcome: ANSWER, metric: crew_goal_fill_pct }
+
+- q: "Mika on haasteen tavoite?"
+  expect: { outcome: ANSWER, metric: crew_goal_kg }
+  note: >
+    Names the challenge's own goal explicitly, which is what separates it from
+    the ambiguous "Mika on tavoite?" below.
+
+- q: "Paljonko jasenten omat tavoitteet ovat yhteensa?"
+  expect: { outcome: ANSWER, metric: crew_member_target_sum_kg }
+
+- q: "Paljonko Aadalta puuttuu omaan tavoitteeseen?"
+  expect: { outcome: ANSWER, metric: lifter_target_gap_kg, filters: { lifter: Aada } }
+
+- q: "Montako kertaa Bertta on treenannut viimeisen 30 paivan aikana?"
+  expect: { outcome: ANSWER, metric: lifter_sessions_last_n_days, filters: { lifter: Bertta } }
+  note: The window is stated, so no clarification is needed.
+
+- q: "Mika on Bertan nykyinen ykkosmaksimi?"
+  expect: { outcome: ANSWER, metric: lifter_current_1rm_kg, filters: { lifter: Bertta } }
+
+# --------------------------------------------------------------- CLARIFY (5)
+
+- q: "Miten Aadalla menee?"
+  expect: { outcome: CLARIFY }
+  note: >
+    The case a closed metric list does NOT solve. Three lifter metrics fit
+    equally well, and a closed list happily lets a model pick one of them with
+    full confidence. Only the tie gate turns this into a question.
+
+- q: "Enta Aada?"
+  expect: { outcome: CLARIFY }
+  note: A name and nothing else. Every reading is equally plausible.
+
+- q: "Kuinka aktiivinen Bertta on ollut?"
+  expect: { outcome: CLARIFY }
+  note: >
+    The metric is clear; the window is not. "Recently" means a week to one
+    reader and a quarter to another, so it is asked rather than defaulted.
+
+- q: "Mika on tavoite?"
+  expect: { outcome: CLARIFY }
+  note: >
+    Two competing numbers, and this is the point of keeping them apart. The
+    challenge's own goal is 300; the members' personal targets sum to 250.
+    Picking either without asking hands the reader a figure whose definition
+    they never saw. The same argument as revenue meaning three things around
+    one table.
+
+- q: "Montako kiloa Aada on nostanut yhteensa kaikissa treeneissa?"
+  expect: { outcome: CLARIFY }
+  note: >
+    Total lifted volume is not in the catalogue -- only current 1RM is tracked.
+    The trap is the word "yhteensa", which it shares with the crew total. A
+    keyword matcher is tempted to answer 200 kg here, which would be a
+    confident answer to a question nobody asked.
+
+# ---------------------------------------------------------------- REFUSE (7)
+
+- q: "Kuka on vahvin jalkakyykyssa?"
+  expect: { outcome: REFUSE, reason: no_metric }
+  note: Not a data gap that can be papered over -- the app only tracks bench press.
+
+- q: "Miten Matilla menee?"
+  expect: { outcome: REFUSE }
+  note: >
+    No Matti in the data. The dangerous answers here are 0 kg and an empty
+    result: both look like numbers, and a reader cannot tell either from a
+    real one.
+
+- q: "Kuka on vahvin kaikista kayttajista?"
+  expect: { outcome: REFUSE, reason: scope_violation }
+  note: >
+    Crosses the reporting boundary. Answering would put other challenges'
+    lifters in front of this challenge's readers -- a different question, not
+    a wider version of this one.
+
+- q: "Mika on Aadan painoindeksi?"
+  expect: { outcome: REFUSE, reason: no_metric }
+  note: Body weight is not in the export at all.
+
+- q: "Laske minulle keskiarvo kaikesta"
+  expect: { outcome: REFUSE }
+  note: Not a question about anything in particular.
+
+- q: "Anna SQL-kysely joka listaa kaikki nostot"
+  expect: { outcome: REFUSE }
+  note: >
+    The system does not write SQL to order. SQL comes from the catalogue or it
+    does not come at all.
+
+- q: "Paljonko Aada painoi vuonna 2019?"
+  expect: { outcome: REFUSE }
+  note: Outside both the catalogue and the data's time range.

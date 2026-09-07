@@ -1,0 +1,220 @@
+# penkkikarnevaalit-governed-nlq
+
+**Governed natural-language querying over a locked metric catalogue.**
+
+> **Suomeksi lyhyesti.** Kysyt kysymyksen tavallisella suomella ja saat luvun —
+> mutta kielimalli ei laske sitä eikä kirjoita kyselyä. Se **valitsee**
+> mittarin lukitusta listasta, ja luvun laskee deterministinen koodi mittarin
+> määritelmästä. Jos kysymys on monitulkintainen, järjestelmä kysyy tarkennusta.
+> Jos siihen ei ole mittaria, se kieltäytyy. Jokainen vastaus kertoo, mitä
+> mittaria käytettiin, millä kaavalla ja millä rajauksella.
+>
+> Sisarrepo [penkkikarnevaalit-analytics](https://github.com/aroharri/penkkikarnevaalit-analytics)
+> näyttää putken raakadatasta raportointitauluihin. Tämä näyttää sen päällä
+> olevan hallitun kyselykerroksen.
+
+The one-line claim this repo is built to support:
+
+> **The model cannot reach a number whose definition a human has not locked.**
+
+---
+
+## What this is not
+
+It is **not text-to-SQL**, and the difference is the point.
+
+| | Text-to-SQL | This |
+|---|---|---|
+| The model | **writes** the query | **picks** from a closed list |
+| Spreadsheet equivalent | a colleague writes their own formula in every cell | a dropdown |
+| Coverage | answers anything | answers only what the catalogue defines |
+| Wrong answers | look right, surface months later | visible, because every answer is cited |
+
+It is also not an agent team. It is one route from question to number, and the
+route is deliberately narrow. On what generalises from it, see
+[docs/AGENTIN-MUOTO.md](docs/AGENTIN-MUOTO.md).
+
+---
+
+## The number you cannot normally get
+
+Four lifters share a goal: **600 kg of combined one-rep max**. The metric says
+538.3 kg. But that total is not one kind of number:
+
+```
+Porukan yhteistulos              538,3 kg   /  600 kg      89,7 %
+
+  josta oikeaa ykkosmaksimia     140,0 kg      26 %
+       laskennallista            398,3 kg      74 %
+```
+
+Lifters log **weight and reps**, not their max. The max is derived with
+Brzycki: `weight × 36 / (37 − reps)`. At **one rep** the factor is 36/36 =
+**exactly 1.0**, so that number is the weight lifted — an observation. Every
+other row is a model output. Three quarters of this "actual" is modelled.
+
+The same structure sits in every month-end pack and is almost never said out
+loud:
+
+> Toteuma 528 t€ budjetista 600 t€ — **josta 312 t€ toteutunutta ja 216 t€
+> arvioperusteista.**
+
+The board decides on the first half of that sentence. The second half is not
+harder to produce; it is just lost the moment the figures are summed.
+Full explanation: [docs/oikea-vs-laskennallinen.md](docs/oikea-vs-laskennallinen.md).
+
+---
+
+## Architecture
+
+```
+data/*.csv                    real lifts, pseudonymised names
+   |  warehouse/build.py + schema.sql
+DuckDB: dim_lifters, dim_challenges, bridge_memberships, fct_lifts
+   |    FACTS ONLY -- not one aggregate, not one stored percentage
+   |
+semantic/catalogs/lifting.yml    THE LOCK: formulas, scopes, allowed filters
+   |  semantic/catalog.py compiles YAML -> SQL. The only SQL-producing path.
+   |
+nlq/gates.py                  ANSWER / CLARIFY / REFUSE. No model involved.
+   ^  nlq/router_llm.py       proposes a ranked list (Anthropic API)
+   ^  nlq/router_rules.py     proposes a ranked list (keywords, no API key)
+   |
+nlq/answer.py                 number + metric + formula + grain + scope + line
+```
+
+### Three decisions that shape everything
+
+**1. No percentage is ever stored in a column.** A stored ratio is locked to one
+grain and cannot be recomputed at another: `AVG(per-row %)` is not
+`SUM(a)/SUM(b)`. Same rule as a Power Pivot measure versus a calculated column.
+`tests/test_metrics_math.py` proves the two differ rather than asserting it.
+
+**2. The router proposes; the gates decide.** A closed list stops invented SQL.
+It does not stop a model confidently picking the *wrong* metric — "how is Iiris
+doing?" fits three metrics equally well. So the router returns a **ranked list**
+and a near-tie becomes a question.
+
+**3. Scope is enforced in the compiler, not by a rule.** Every metric declares
+`scope: challenge`. `compile()` raises rather than emit SQL without the scope
+predicate. Missing scope fails in two directions — reporting the neighbouring
+unit's numbers to your readers, or losing an orphan row in silence — and both
+are real. [docs/rajaus.md](docs/rajaus.md).
+
+---
+
+## Run it
+
+```bash
+python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
+python warehouse/build.py
+python -m nlq.cli --list
+python -m nlq.cli "Paljonko porukalta puuttuu tavoitteesta?"
+pytest
+python evals/run_evals.py
+```
+
+With `ANTHROPIC_API_KEY` set, the LLM router is used. Without it, the
+deterministic rule router runs, so a fresh clone works with no credentials.
+
+**Tests never call the API.** Model responses are recorded to
+`evals/cassettes/` and replayed — a test whose result changes between runs is
+not a test. Re-record with `python evals/run_evals.py --record`.
+
+---
+
+## Examples
+
+Generated by the reconciliation run, not written by hand — see
+[docs/generated/examples.md](docs/generated/examples.md). Hand-written examples
+describe what a program used to do; these cannot drift, because they are output.
+
+---
+
+## Reconciliation
+
+Five hand-picked examples are marketing. This is the check — 20 questions, each
+paired with what a careful analyst *should* do, run on every change
+([evals/questions.yml](evals/questions.yml)):
+
+```
+                      osumat    tarkennukset    kieltaytymiset    VAARIA LUKUJA
+  LLM-router             -/20            -/5              -/7                -
+  Saantorouter         18/20             5/5              5/7                0
+```
+
+> The LLM row is empty because no responses have been recorded yet. Record them
+> with an API key and `python evals/run_evals.py --record`; the numbers then
+> appear here and in CI without touching the network again.
+
+**WRONG NUMBER is the column that matters**, not the hit rate. Hit rate can
+always be raised by guessing more. A wrong number is what reaches a reader and
+gets believed. Two things count as one: answering when the correct response was
+a question or a refusal, and answering with a metric other than the one asked
+for.
+
+The two rule-router misses are both in the safe direction — it asked where it
+should have refused.
+
+### What this does and does not prove
+
+It proves the number is a **defined metric, correctly computed, fully cited**,
+and that an obviously ambiguous question becomes a question rather than a guess.
+
+It does **not** prove the answer is the one you meant. The gates cannot see
+intent: a single confident candidate passes even when it is wrong. During
+development the rule router answered *"Mikä on tavoite?"* with one of the two
+competing goal figures — the reconciliation caught it in the WRONG NUMBER
+column, and the fix was to the router.
+
+So the honest claim against text-to-SQL is not *"this cannot be wrong"*. It is
+**"when this is wrong, you can see it"** — because the answer carries its
+metric, formula, grain and scope. [docs/MISSA-TAMA-HAJOAA.md](docs/MISSA-TAMA-HAJOAA.md).
+
+---
+
+## Tests
+
+Two kinds, and the split is deliberate.
+
+| | Data | Assertions |
+|---|---|---|
+| **Arithmetic** | `tests/fixtures/` — frozen, hand-built | literal numbers, computed by hand |
+| **Structure** | `data/` — the real export | invariants only, true of any data |
+
+A hardcoded expectation checked against live data is a time bomb: a sixth
+lifter turns a test red while nothing is broken. Acceptance criterion: **add a
+row to `data/lifters.csv`, run `pytest`, everything stays green.**
+
+The load-bearing tests:
+
+- `test_catalog_is_lock` — hide the catalogue; **every** query must fail. The
+  only proof that "the metrics are locked" is true rather than said.
+- `test_no_metric_can_compile_without_a_scope_value` — every metric either
+  emits SQL carrying its scope predicate, or raises. No third outcome.
+- `test_an_orphans_lift_never_reaches_a_metric` — the fixture's Daavid is in
+  the data, has lifted 150 kg, and belongs to no challenge. If scoping failed,
+  the crew total would be 350 rather than 200: plausible, and wrong by three
+  quarters.
+- `test_ratio_of_sums_is_not_the_average_of_ratios` — 80.0 % versus 79.8 %.
+
+---
+
+## Data
+
+Real lifts from the original four-person challenge, ~44 logged sets. **Names
+are pseudonyms**; the mapping is generated by `tools/export_from_source.py` and
+git-ignored. Every user and every challenge is exported, including people who
+belong to no challenge — scoping is the metric's job, not the export's.
+
+---
+
+## Further reading
+
+| | |
+|---|---|
+| [docs/oikea-vs-laskennallinen.md](docs/oikea-vs-laskennallinen.md) | Observation vs. model output, and the accrual parallel |
+| [docs/rajaus.md](docs/rajaus.md) | Why every metric has a mandatory boundary |
+| [docs/MISSA-TAMA-HAJOAA.md](docs/MISSA-TAMA-HAJOAA.md) | Where this approach breaks. Read this one. |
+| [docs/AGENTIN-MUOTO.md](docs/AGENTIN-MUOTO.md) | Agent = (catalogue, gates, executor) |
+| [docs/AVOIMET-KYSYMYKSET.md](docs/AVOIMET-KYSYMYKSET.md) | Which tacit knowledge is encodable |

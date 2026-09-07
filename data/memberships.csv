@@ -1,0 +1,5 @@
+challenge_id,lifter_id,target_1rm_kg,starting_1rm_kg
+C1,L1,140.0,
+C1,L2,160.0,
+C1,L3,140.0,120
+C1,L4,160.0,
