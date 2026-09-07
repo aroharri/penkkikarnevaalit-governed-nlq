@@ -67,6 +67,10 @@ Full explanation: [docs/oikea-vs-laskennallinen.md](docs/oikea-vs-laskennallinen
 
 ## Architecture
 
+Two diagrams -- where a number comes from, and how a question is decided --
+are in **[docs/PROSESSI.md](docs/PROSESSI.md)**, with every gate and the reason
+each one exists.
+
 ```
 data/*.csv                    real lifts, pseudonymised names
    |  warehouse/build.py + schema.sql
@@ -268,6 +272,7 @@ belong to no challenge — scoping is the metric's job, not the export's.
 
 | | |
 |---|---|
+| **[docs/PROSESSI.md](docs/PROSESSI.md)** | **How it works: two diagrams, every gate, where each step lives** |
 | [docs/oikea-vs-laskennallinen.md](docs/oikea-vs-laskennallinen.md) | Observation vs. model output, and the accrual parallel |
 | [docs/rajaus.md](docs/rajaus.md) | Why every metric has a mandatory boundary |
 | [docs/MISSA-TAMA-HAJOAA.md](docs/MISSA-TAMA-HAJOAA.md) | Where this approach breaks. Read this one. |
