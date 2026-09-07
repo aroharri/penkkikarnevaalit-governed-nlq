@@ -5,7 +5,9 @@ Command line entry point.
     python -m nlq.cli --router rules "..."
     python -m nlq.cli --metric crew_goal_gap_kg "..."     # skip the router, keep the gates
     python -m nlq.cli --json "..."
-    python -m nlq.cli --list                              # the whole catalogue
+    python -m nlq.cli --list                              # one line per metric
+    python -m nlq.cli --show crew_total_1rm_kg            # one definition in full
+    python -m nlq.cli --show all                          # every definition
 """
 
 from __future__ import annotations
@@ -36,7 +38,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--metric", help="Name a metric directly. Skips the router, not the gates.")
     ap.add_argument("--as-of", help="Anchor date for time windows (YYYY-MM-DD). Default: today.")
     ap.add_argument("--json", action="store_true", help="Machine-readable output, citation included")
-    ap.add_argument("--list", action="store_true", help="List the catalogue and exit")
+    ap.add_argument("--list", action="store_true", help="One line per metric, then exit")
+    ap.add_argument("--show", metavar="METRIC",
+                    help="Full definition of one metric, or 'all' for every metric. "
+                         "Same fields an answer cites, without having to invent a question first.")
     ap.add_argument("--providers", action="store_true", help="List LLM providers and exit")
     ap.add_argument("--record", action="store_true", help="Call the API and record the response")
     args = ap.parse_args(argv)
@@ -44,11 +49,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.list:
         return _print_catalog()
 
+    if args.show:
+        return _print_metric(args.show)
+
     if args.providers:
         return _print_providers()
 
     if not args.question:
-        ap.error("a question is required (or use --list)")
+        ap.error("a question is required (or use --list / --show)")
 
     router = args.router or ask_mod.default_router()
     result, decision, _proposal = ask_mod.ask(
@@ -83,6 +91,75 @@ def _print_catalog() -> int:
         if m.requires_params:
             print(f"      requires: {', '.join(m.requires_params)}")
     return 0
+
+
+def _print_metric(which: str) -> int:
+    """Print a metric the way the answer cites it.
+
+    semantic/catalog.py says the definition has to be something a controller can
+    read and dispute. That was only half true: the definition existed in YAML,
+    but the only way to see a formula was to open the file and know where to
+    look. A definition nobody can read is not governance, it is a note about
+    governance -- the same post-it/lock distinction, one level up.
+
+    Field labels match the citation printed under an answer exactly, so the two
+    are recognisably the same object seen from two directions.
+    """
+    cat = catalog_mod.load()
+    names = cat.metric_names() if which == "all" else [which]
+
+    unknown = [n for n in names if n not in cat.metrics]
+    if unknown:
+        print(f"Ei mittaria '{unknown[0]}'.\n\nKatalogissa on:")
+        for name in cat.metric_names():
+            print(f"  {name}")
+        return 3
+
+    for i, name in enumerate(names):
+        if i:
+            print()
+        _render_metric(cat, cat.get(name))
+    return 0
+
+
+def _render_metric(cat, m) -> None:
+    measures = cat.measures_for(m)
+    print(f"{m.name}")
+    print(f"  {m.label}")
+    print()
+    print(f"  Maaritelma    {m.definition(measures)}")
+
+    # The ingredients, so the chain from stored fact to reported number is
+    # visible in one screen. The formula alone still hides where it reads from.
+    for role, measure_name in m.parts.items():
+        spec = measures[measure_name]
+        print(f"     {role:<12}{measure_name} = {spec['agg']}({spec['column']})"
+              f"  <- {spec['base']}")
+
+    print(f"  Rakeisuus     {m.grain}")
+    print(f"  Yksikko       {m.unit}")
+    print(f"  Rajaus        {m.scope}  (pakollinen -- ilman sita ei synny SQL:aa)")
+    print(f"  Sallitut      rajaukset: {', '.join(m.filterable_dimensions) or '-'}")
+    print(f"                ryhmittelyt: {', '.join(m.allowed_dimensions) or '-'}")
+    if m.requires_params:
+        print(f"  Vaatii        {', '.join(m.requires_params)}")
+    if m.note:
+        print(f"  Huom          {_wrap(' '.join(m.note.split()))}")
+    if m.examples:
+        print("  Esimerkkeja   " + f"\n{' ' * 16}".join(m.examples))
+    print(f"  Katalogi      {m.source_file}:{m.source_line}")
+
+
+def _wrap(text: str, width: int = 60, indent: str = " " * 16) -> str:
+    lines, current = [], ""
+    for word in text.split():
+        if len(current) + len(word) + 1 > width:
+            lines.append(current)
+            current = word
+        else:
+            current = f"{current} {word}".strip()
+    lines.append(current)
+    return f"\n{indent}".join(lines)
 
 
 def _print_providers() -> int:

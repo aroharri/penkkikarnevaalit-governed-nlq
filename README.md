@@ -95,6 +95,33 @@ It does not stop a model confidently picking the *wrong* metric — "how is Rein
 doing?" fits three metrics equally well. So the router returns a **ranked list**
 and a near-tie becomes a question.
 
+### Reading the lock
+
+A definition nobody can read is a note about governance, not governance. The
+catalogue is plain text on purpose -- the person who owns a number should be
+able to read its formula and dispute it without reading code:
+
+```
+$ python -m nlq.cli --show crew_target_fill_pct
+
+crew_target_fill_pct
+  Tayttoaste jasenten omista tavoitteista
+
+  Maaritelma    SUM(one_rm_kg) / SUM(target_1rm_kg)
+     numerator   latest_1rm_kg = sum(one_rm_kg)      <- member_current
+     denominator target_1rm_kg = sum(target_1rm_kg)  <- member_current
+  Rakeisuus     challenge
+  Rajaus        challenge  (pakollinen -- ilman sita ei synny SQL:aa)
+  Huom          NON-ADDITIVE, and the clearest case of why. Defined as
+                SUM(latest) / SUM(target). The average of the members'
+                individual percentages is a DIFFERENT and wrong number...
+  Katalogi      semantic/catalogs/lifting.yml:212
+```
+
+The field labels are the same ones printed under an answer, because it is the
+same object seen from two directions: `--show` before asking, the citation
+after.
+
 **3. Scope is enforced in the compiler, not by a rule.** Every metric declares
 `scope: challenge`. `compile()` raises rather than emit SQL without the scope
 predicate. Missing scope fails in two directions — reporting the neighbouring
@@ -108,7 +135,9 @@ are real. [docs/rajaus.md](docs/rajaus.md).
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
 python warehouse/build.py
-python -m nlq.cli --list
+python -m nlq.cli --list                       # one line per metric
+python -m nlq.cli --show crew_total_1rm_kg     # one definition in full
+python -m nlq.cli --show all                   # every definition
 python -m nlq.cli "Paljonko porukalta puuttuu tavoitteesta?"
 pytest
 python evals/run_evals.py
