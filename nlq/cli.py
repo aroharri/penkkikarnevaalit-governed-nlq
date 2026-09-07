@@ -47,6 +47,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--as-of", help="Anchor date for time windows (YYYY-MM-DD). Default: today.")
     ap.add_argument("--json", action="store_true", help="Machine-readable output, citation included")
     ap.add_argument("--list", action="store_true", help="One line per metric, then exit")
+    ap.add_argument("--menu", action="store_true",
+                    help="What you can ask, in plain language. The list a reader needs "
+                         "before an empty prompt is useful.")
     ap.add_argument("--show", metavar="METRIC",
                     help="Full definition of one metric, or 'all' for every metric. "
                          "Same fields an answer cites, without having to invent a question first.")
@@ -58,6 +61,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list:
         return _print_catalog()
+
+    if args.menu:
+        from nlq.db import Warehouse
+        with Warehouse() as wh:
+            print(menu_text(catalog_mod.load(), wh))
+        return 0
 
     if args.show:
         return _print_metric(args.show)
@@ -104,6 +113,90 @@ def _print_catalog() -> int:
         if m.requires_params:
             print(f"      requires: {', '.join(m.requires_params)}")
     return 0
+
+
+GRAIN_TITLES = {
+    "challenge": "PORUKAN TASOLLA",
+    "lifter": "NOSTAJAKOHTAISET",
+}
+
+
+def menu_text(cat, warehouse) -> str:
+    """What a person may ask, grouped and in plain language.
+
+    An empty prompt is the best-known way to make a question interface fail. A
+    reader who cannot see what is on offer either asks nothing, or asks
+    something outside the catalogue, gets refused, and concludes it is broken.
+    The spreadsheet equivalent is a dropdown with the arrow hidden: the limit is
+    there, the choices are not, so it reads as a refusal rather than as help.
+
+    The lines come from the catalogue's own example questions -- the same list
+    that teaches the model what a metric means. One list, two audiences, and
+    until now only the model saw it.
+
+    Names are read from the warehouse rather than written here, so the menu says
+    who is actually in the data instead of naming people who left.
+    """
+    by_grain: dict[str, list[str]] = {}
+    for name in cat.metric_names():
+        metric = cat.get(name)
+        for example in metric.examples:
+            lines = by_grain.setdefault(metric.grain, [])
+            if example not in lines:
+                lines.append(example)
+
+    out = ["Nain voit kysya. Kopioi rivi ja muokkaa sita vapaasti.", ""]
+    for grain, title in GRAIN_TITLES.items():
+        if grain not in by_grain:
+            continue
+        out.append(title)
+        lines = by_grain[grain]
+        if grain == "lifter":
+            # Only people who belong to a challenge. Every metric is scoped, so
+            # a lifter outside one is refused -- and a menu that offers a
+            # question the system will refuse is worse than a shorter menu.
+            members = _members(warehouse)
+            outside = len(_entity_labels(cat, warehouse, "lifter")) - len(members)
+            out.append("  Nimea nostaja: ilman nimea kysymys osuu myos porukan mittareihin.")
+            out.append(f"  Nostajat: {', '.join(members)}")
+            if outside:
+                out.append(f"  ({outside} muuta kayttajaa ei kuulu haasteeseen, "
+                           f"joten heista ei ole lukuja)")
+            out.append("")
+            # "han" swaps cleanly for a nominative name; the genitive and
+            # ablative phrasings do not, so those stay generic rather than
+            # producing broken Finnish.
+            if members:
+                lines = [line.replace("han ", f"{members[0].split()[0]} ") for line in lines]
+        out += [f"  {line}" for line in lines]
+        out.append("")
+
+    out += [
+        "Kysymykseen, joka osuu useaan mittariin, tulee tarkentava kysymys.",
+        "Kysymykseen, jolle ei ole mittaria, tulee kieltaytyminen -- ei arvausta.",
+        "Yhden mittarin maaritelman naet komennolla  :show <mittari>",
+    ]
+    return "\n".join(out)
+
+
+def _members(warehouse) -> list[str]:
+    """Lifters who belong to at least one challenge, so every name offered is a
+    name the system can actually answer about."""
+    return [n for n, in warehouse.run("""
+        select distinct l.lifter_name
+        from dim_lifters l
+        join bridge_memberships m on m.lifter_id = l.lifter_id
+        order by l.lifter_name
+    """)]
+
+
+def _entity_labels(cat, warehouse, entity_name: str) -> list[str]:
+    for metric in cat.metrics.values():
+        entity = cat.datasets[metric.dataset]["entities"].get(entity_name)
+        if entity:
+            return [v for _, v in warehouse.entity_values(
+                entity["table"], entity["key"], entity["label_column"])]
+    return []
 
 
 def _print_metric(which: str) -> int:

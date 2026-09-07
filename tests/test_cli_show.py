@@ -72,3 +72,42 @@ def test_an_unknown_metric_lists_the_real_ones(capsys, catalog):
 def test_informational_flags_need_no_question_and_no_warehouse(flag, capsys):
     assert main(flag) == 0
     assert capsys.readouterr().out.strip()
+
+
+def test_the_menu_only_offers_names_the_system_can_answer_about(capsys, real):
+    """A menu line the system will refuse is worse than a shorter menu.
+
+    Every metric is scoped to a challenge, so a lifter who belongs to none is
+    refused. Listing them as a suggestion promises something that cannot be
+    delivered -- advice that fails where it is read.
+    """
+    assert main(["--menu"]) == 0
+    out = capsys.readouterr().out
+
+    orphans = real.run("""
+        select l.lifter_name from dim_lifters l
+        where not exists (select 1 from bridge_memberships m where m.lifter_id = l.lifter_id)
+    """)
+    names_line = next(ln for ln in out.splitlines() if ln.strip().startswith("Nostajat:"))
+    for (orphan,) in orphans:
+        assert orphan not in names_line, f"{orphan} is offered but belongs to no challenge"
+
+    members = real.run("""
+        select distinct l.lifter_name from dim_lifters l
+        join bridge_memberships m on m.lifter_id = l.lifter_id
+    """)
+    for (member,) in members:
+        assert member in names_line
+
+
+def test_the_menu_is_built_from_the_catalogue_not_written_twice(capsys, catalog):
+    """The example questions serve the model and the reader. If the menu had its
+    own copy, one of them would go stale and nobody would notice which."""
+    assert main(["--menu"]) == 0
+    out = capsys.readouterr().out
+    crew_examples = [e for n in catalog.metric_names()
+                     if catalog.get(n).grain == "challenge"
+                     for e in catalog.get(n).examples]
+    assert crew_examples
+    for example in crew_examples:
+        assert example in out, f"catalogue example missing from the menu: {example}"

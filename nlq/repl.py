@@ -18,6 +18,7 @@ import sys
 
 from nlq import answer as answer_mod
 from nlq import ask as ask_mod
+from nlq.cli import menu_text
 from nlq.db import Warehouse
 from semantic import catalog as catalog_mod
 
@@ -26,6 +27,7 @@ PROMPT = "nlq> "
 HELP = """
   Kirjoita kysymys suomeksi, tai:
 
+    :menu              mita voit kysya, tavallisella kielella
     :list              mittarit yhtena listana
     :show <mittari>    yhden mittarin maaritelma  (:show all = kaikki)
     :router <nimi>     vaihda router: rules | llm | anthropic | gemini | ...
@@ -63,7 +65,14 @@ def run(router: str | None = None, as_of: str | None = None,
     force_metric: str | None = None
 
     with Warehouse(db_path) as wh:
-        print(f"{len(cat.metrics)} mittaria, router: {router}.  :help  |  :quit")
+        # The first thing a reader sees must not be an empty prompt. Three
+        # lines they can copy beat a blank line and a blinking cursor.
+        print(f"{len(cat.metrics)} mittaria, router: {router}.  "
+              f":menu = mita voi kysya  |  :help  |  :quit")
+        print()
+        for line in _teaser(cat, wh):
+            print(f"  {line}")
+        print()
 
         while True:
             try:
@@ -84,6 +93,10 @@ def run(router: str | None = None, as_of: str | None = None,
                     return 0
                 if command in ("help", "h", "?"):
                     print(HELP)
+                elif command == "menu":
+                    print()
+                    print(menu_text(cat, wh))
+                    print()
                 elif command == "list":
                     _list(cat)
                 elif command == "show":
@@ -129,6 +142,18 @@ def _answer(question, cat, wh, router, as_of, force_metric, as_json, offline=Fal
     else:
         print(result.text)
     print()
+
+
+def _teaser(cat, wh) -> list[str]:
+    """Three questions that work, straight away.
+
+    Not a summary of the menu -- a sample of it. Someone who copies one of these
+    has used the thing inside ten seconds, which is the only way a question
+    interface ever gets adopted.
+    """
+    lines = [ln.strip() for ln in menu_text(cat, wh).splitlines()
+             if ln.startswith("  ") and ln.strip().endswith("?")]
+    return lines[:2] + lines[-1:]
 
 
 def _list(cat) -> None:
