@@ -1,14 +1,14 @@
 {
-  "question": "Paljonko Aadalta puuttuu omaan tavoitteeseen?",
+  "question": "Mika on haasteen tavoite?",
   "provider": "anthropic",
   "model": "claude-sonnet-5",
   "response": {
     "candidates": [
       {
-        "metric": "lifter_target_gap_kg",
-        "confidence": 0.97,
+        "metric": "crew_goal_kg",
+        "confidence": 0.9,
         "filters": {
-          "lifter": "Aada"
+          "challenge": "Testihaaste"
         }
       }
     ],

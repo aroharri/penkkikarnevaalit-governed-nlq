@@ -25,7 +25,7 @@ Rajaus: Testihaaste  (ainoa datassa -- ratkaistu automaattisesti)
                 one and says which. A one-rep set is a real max; anything with
                 more reps is an estimate. Sets outside 1-12 reps are excluded,
                 because Brzycki is unreliable beyond that.
-  Katalogi      semantic/catalogs/lifting.yml:122
+  Katalogi      semantic/catalogs/lifting.yml:128
 ```
 
 ### Tarkennuspyynto

@@ -60,7 +60,7 @@ class Metric:
     @property
     def filterable_dimensions(self) -> list[str]:
         """Dimensions a question may filter on. The metric's own grain is always
-        included: a lifter-grain metric must accept "...for Iiris" without the
+        included: a lifter-grain metric must accept "...for Reino" without the
         catalogue restating it."""
         dims = list(self.allowed_dimensions)
         if self.grain == "lifter" and "lifter" not in dims:

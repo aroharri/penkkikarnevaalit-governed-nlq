@@ -1,0 +1,18 @@
+{
+  "question": "Kuinka monta prosenttia haasteen tavoitteesta on saavutettu?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "crew_goal_fill_pct",
+        "confidence": 0.85
+      },
+      {
+        "metric": "crew_target_fill_pct",
+        "confidence": 0.3
+      }
+    ],
+    "crosses_scope": false
+  }
+}

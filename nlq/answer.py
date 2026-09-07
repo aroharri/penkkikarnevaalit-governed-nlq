@@ -179,7 +179,22 @@ _SOURCE_LABEL = {
 
 
 def _source_split(decision: Decision, catalog: Catalog, warehouse) -> list[tuple[str, float]]:
+    """Split a single total into real maxima and Brzycki estimates.
+
+    Only for a challenge-grain metric, i.e. one number. At lifter grain the
+    compiled query still groups by lifter, so collapsing its rows by source
+    would keep one arbitrary lifter per source -- a pair of numbers that add up
+    to nothing in particular and sit directly under a total they do not
+    explain. (They did, briefly. A displayed number that is not a quantity is
+    the failure this whole repo argues against, so it is stated here rather
+    than quietly patched.)
+
+    The split is also meaningless per lifter: one lifter's latest set has
+    exactly one source, so the "breakdown" would just repeat the row.
+    """
     metric = decision.metric
+    if metric.grain != "challenge":
+        return []
     if "one_rm_source" not in metric.allowed_dimensions or "one_rm_source" in decision.group_by:
         return []
     sql, args = catalog.compile(

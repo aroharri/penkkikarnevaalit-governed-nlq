@@ -75,7 +75,7 @@ puuttuu?" ei ole monitulkintainen, ja järjestelmä ratkaisee rajauksen — mutt
 **lukee sen ääneen vastauksen ensimmäisellä rivillä**:
 
 ```
-Rajaus: Penkkikarnevaalit 2026  (ainoa datassa -- ratkaistu automaattisesti)
+Rajaus: Kalterikarnevaalit 2026  (ainoa datassa -- ratkaistu automaattisesti)
 ```
 
 Kun toinen haaste ilmestyy, sama koodi alkaa kysyä. Ei erikoistapausta, ei

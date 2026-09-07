@@ -152,3 +152,24 @@ def test_an_orphans_lift_never_reaches_a_metric(frozen, catalog):
 
     sql, args = catalog.compile("lifter_current_1rm_kg", scope_value="X1")
     assert "Daavid" not in dict(frozen.run(sql, args))
+
+
+def test_the_source_split_is_only_shown_where_it_is_a_split(frozen, catalog):
+    """At lifter grain the compiled query groups by lifter as well, so
+    collapsing those rows by source keeps one arbitrary lifter per source: two
+    numbers that sum to nothing in particular, printed under a total they do
+    not explain. The answer must not offer a breakdown there.
+    """
+    from nlq.answer import _source_split
+    from nlq.gates import Candidate, Proposal, decide
+
+    crew = decide(Proposal(candidates=[Candidate("crew_total_1rm_kg", 0.9)]), catalog, frozen)
+    split = _source_split(crew, catalog, frozen)
+    assert split, "a crew total must show what is measured and what is modelled"
+    assert sum(v for _, v in split) == pytest.approx(CREW_TOTAL), (
+        "a breakdown that does not add up to the number above it is worse than none"
+    )
+
+    per_lifter = decide(Proposal(candidates=[Candidate("lifter_current_1rm_kg", 0.9)]),
+                        catalog, frozen)
+    assert _source_split(per_lifter, catalog, frozen) == []

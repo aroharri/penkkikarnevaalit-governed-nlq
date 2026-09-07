@@ -1,15 +1,16 @@
 {
-  "question": "Kuinka monta prosenttia haasteen tavoitteesta on saavutettu?",
+  "question": "Mika on Daavidin nykyinen ykkosmaksimi?",
   "provider": "anthropic",
   "model": "claude-sonnet-5",
   "response": {
     "candidates": [
       {
-        "metric": "crew_goal_fill_pct",
+        "metric": "lifter_current_1rm_kg",
         "confidence": 0.95,
         "filters": {
-          "challenge": "Testihaaste"
-        }
+          "lifter": "Daavid"
+        },
+        "group_by": []
       }
     ],
     "crosses_scope": false

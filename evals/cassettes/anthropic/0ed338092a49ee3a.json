@@ -6,7 +6,7 @@
     "candidates": [
       {
         "metric": "lifter_sessions_last_n_days",
-        "confidence": 0.6,
+        "confidence": 0.8,
         "filters": {
           "lifter": "Bertta"
         }

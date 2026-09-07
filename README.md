@@ -91,7 +91,7 @@ grain and cannot be recomputed at another: `AVG(per-row %)` is not
 `tests/test_metrics_math.py` proves the two differ rather than asserting it.
 
 **2. The router proposes; the gates decide.** A closed list stops invented SQL.
-It does not stop a model confidently picking the *wrong* metric — "how is Iiris
+It does not stop a model confidently picking the *wrong* metric — "how is Reino
 doing?" fits three metrics equally well. So the router returns a **ranked list**
 and a near-tie becomes a question.
 

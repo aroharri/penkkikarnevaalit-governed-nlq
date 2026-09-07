@@ -1,11 +1,11 @@
 {
-  "question": "Mika on haasteen tavoite?",
+  "question": "Paljonko porukan yhteistulos on nyt?",
   "provider": "anthropic",
   "model": "claude-sonnet-5",
   "response": {
     "candidates": [
       {
-        "metric": "crew_goal_kg",
+        "metric": "crew_total_1rm_kg",
         "confidence": 0.95
       }
     ],

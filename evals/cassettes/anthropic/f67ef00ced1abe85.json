@@ -6,11 +6,11 @@
     "candidates": [
       {
         "metric": "crew_goal_kg",
-        "confidence": 0.5
+        "confidence": 0.55
       },
       {
         "metric": "crew_member_target_sum_kg",
-        "confidence": 0.5
+        "confidence": 0.45
       }
     ],
     "crosses_scope": false

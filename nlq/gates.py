@@ -7,7 +7,7 @@ decisions can be talked out of.
 
 The reasoning behind that split: a closed list of metrics stops a model
 inventing SQL, but it does not stop it confidently picking the WRONG metric.
-"How is Iiris doing?" matches three metrics equally well, and the correct
+"How is Reino doing?" matches three metrics equally well, and the correct
 response is a question, not the best guess. So the router returns a ranked
 list, and a tie becomes a clarification rather than a coin flip.
 

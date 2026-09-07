@@ -28,8 +28,21 @@ MAP_FILE = REPO / "tools" / "pseudonym_map.json"
 # Pseudonyms are assigned in a stable order (see assign_pseudonyms). They are
 # deliberately different from the seed names used in penkkikarnevaalit-analytics
 # so nobody reads the two repos as describing the same fictional people.
-LIFTER_NAMES = ["Iiris", "Onni", "Helmi", "Toivo", "Vieno", "Aarne", "Sylvi", "Urho"]
-CHALLENGE_NAMES = ["Penkkikarnevaalit 2026", "Kevathaaste", "Syyshaaste"]
+# Traditional Finnish men's names with a yard-flavoured second name. The fifth
+# is assigned to whoever joined fifth, which in this export is the account that
+# belongs to no challenge -- so "Ehdonalainen" (on parole) is the one who is not
+# inside. That is a joke, and it is also the row every scope test depends on.
+LIFTER_NAMES = [
+    "Reino Kalteri",        # kalteri = the bars
+    "Tauno Linna",          # linna = doing time
+    "Veikko Rautanen",
+    "Urho Muuri",
+    "Kalle Ehdonalainen",   # on parole -- belongs to no challenge
+    "Arvo Sakko",
+    "Eino Vartio",
+    "Sulo Putka",
+]
+CHALLENGE_NAMES = ["Kalterikarnevaalit 2026", "Kevathaaste", "Syyshaaste"]
 
 
 def assign_pseudonyms(rows, names, prefix):

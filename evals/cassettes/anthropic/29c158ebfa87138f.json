@@ -13,14 +13,14 @@
       },
       {
         "metric": "lifter_target_gap_kg",
-        "confidence": 0.4,
+        "confidence": 0.35,
         "filters": {
           "lifter": "Aada"
         }
       },
       {
         "metric": "lifter_sessions_last_n_days",
-        "confidence": 0.3,
+        "confidence": 0.2,
         "filters": {
           "lifter": "Aada"
         }

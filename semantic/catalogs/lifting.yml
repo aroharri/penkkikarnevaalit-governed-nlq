@@ -116,6 +116,12 @@ measures:
 # Grain is part of the metric NAME (crew_ / lifter_) rather than a free
 # parameter. Slightly redundant by semantic-layer purism, but it means a
 # citation can never be read at the wrong level by accident.
+#
+# Example questions never name a member. A metric definition must not depend on
+# who is in the data today -- naming someone here is the same mistake as
+# hardcoding an expected value in a test: correct until somebody joins or
+# leaves. The actual names reach the model separately, read from the warehouse
+# at query time (nlq/router_llm.entity_vocabulary).
 # ---------------------------------------------------------------------------
 metrics:
 
@@ -234,8 +240,8 @@ metrics:
       The lifter's most recent logged set, not their all-time best. A lifter
       whose numbers have fallen should show the fall.
     examples:
-      - "Mika on Iiriksen nykyinen ykkosmaksimi?"
-      - "Paljonko Onni nostaa nyt?"
+      - "Mika on nostajan nykyinen ykkosmaksimi?"
+      - "Paljonko han nostaa nyt?"
 
   lifter_target_gap_kg:
     label: "Paljonko nostajalta puuttuu omaan tavoitteeseen"
@@ -248,8 +254,8 @@ metrics:
     allowed_dimensions: []
     note: "Nostajan oma tavoite miinus hanen viimeisin 1RM-tuloksensa."
     examples:
-      - "Paljonko Helmilta puuttuu omaan tavoitteeseen?"
-      - "Kuinka kaukana Toivo on tavoitteestaan?"
+      - "Paljonko nostajalta puuttuu omaan tavoitteeseen?"
+      - "Kuinka kaukana han on tavoitteestaan?"
 
   lifter_sessions_last_n_days:
     label: "Nostajan treenikerrat viimeisen n paivan aikana"
@@ -265,5 +271,5 @@ metrics:
       window: without one the number means nothing, so the question is asked
       rather than a default quietly assumed.
     examples:
-      - "Montako kertaa Iiris on treenannut viimeisen 30 paivan aikana?"
-      - "Kuinka aktiivinen Onni on ollut viime kuukautena?"
+      - "Montako kertaa han on treenannut viimeisen 30 paivan aikana?"
+      - "Kuinka aktiivinen han on ollut viime kuukautena?"
