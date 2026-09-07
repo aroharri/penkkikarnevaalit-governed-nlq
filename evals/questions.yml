@@ -16,6 +16,11 @@
 # expect.metric is checked only for ANSWER. Answering with a DIFFERENT metric
 # counts as a wrong number, not as a near miss: the reader gets a confident
 # figure that answers a question they did not ask.
+#
+# expect.reason is a NOTE, not an assertion. Two routers can reach the same
+# correct refusal by different gates -- an unknown name is unknown_value when a
+# router proposes it and no_metric when a router does not -- and asserting one
+# of them would fail a router for being right in a different way.
 
 # ---------------------------------------------------------------- ANSWER (8)
 

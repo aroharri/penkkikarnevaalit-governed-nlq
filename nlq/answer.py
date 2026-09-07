@@ -57,6 +57,10 @@ def build(decision: Decision, catalog: Catalog, warehouse, as_of: str | None = N
 # ---------------------------------------------------------------------------
 
 
+# Output says what happened and what the reader can do. The reasoning behind a
+# refusal -- why an empty result is not an answer, why scope is mandatory --
+# belongs in docs/, not in every message. Explaining the design to someone who
+# only wanted a number is noise, and it buried the one useful sentence.
 def _refusal(decision: Decision, catalog: Catalog) -> Answer:
     lines = [f"En vastaa: {decision.message}"]
     if decision.reason == "no_metric":
@@ -64,10 +68,6 @@ def _refusal(decision: Decision, catalog: Catalog) -> Answer:
         lines.append("Osaan nama mittarit:")
         for name in decision.alternatives:
             lines.append(f"  {name:30} {catalog.get(name).label}")
-    if decision.reason == "unknown_value":
-        # Spelling this out matters: an empty result and a zero both look like
-        # answers, and a reader has no way to tell them from a real number.
-        lines.append("En palauta nollaa enka tyhjaa tulosta -- molemmat nayttaisivat luvulta.")
     return Answer(Outcome.REFUSE, "\n".join(lines), citation={"reason": decision.reason})
 
 
@@ -81,8 +81,11 @@ def _clarification(decision: Decision, catalog: Catalog, metric_hint: str) -> An
             else:
                 lines.append(f"  {i}  {name}")
     if decision.reason == "ambiguous":
+        # The gate's own message already says it will not choose. Repeating it
+        # here said the same thing twice and left the useful half -- how to pick
+        # one -- looking like an afterthought.
         lines.append("")
-        lines.append("En valitse puolestasi. Kysy tarkemmin, tai nimea mittari suoraan:")
+        lines.append("Kysy tarkemmin, tai nimea mittari suoraan:")
         lines.append("  " + metric_hint.format(metric=decision.alternatives[0]))
     return Answer(Outcome.CLARIFY, "\n".join(lines), citation={"reason": decision.reason})
 
@@ -161,23 +164,32 @@ def _empty_result(decision: Decision, catalog: Catalog, warehouse) -> Answer:
     the difference between "no data" and "wrong question".
     """
     metric = decision.metric
-    lines = [(f"En vastaa: rajaus {decision.scope_label} ei sisalla yhtaan rivia "
-              f"mittarille {metric.name}.")]
-
     lifter = decision.filters.get("lifter")
+
     if lifter:
         entity = catalog.entity(metric, "lifter")
         exists = warehouse.run(
             f"select count(*) from {entity['table']} "
             f"where lower({entity['label_column']}) = lower(?)", [lifter])[0][0]
         if exists:
-            lines.append(
-                f"\"{lifter}\" on datassa, mutta ei kuulu haasteeseen "
-                f"{decision.scope_label}. Mittari on rajattu haasteen sisalle, joten "
-                f"han ei nay siina -- eika tyhja tulos ole han nolla."
-            )
-    lines.append("En palauta nollaa enka tyhjaa taulukkoa -- molemmat nayttaisivat luvulta.")
-    return Answer(Outcome.REFUSE, "\n".join(lines), citation={"reason": "empty_result"})
+            members = [n for n, in warehouse.run("""
+                select l.lifter_name
+                from bridge_memberships m
+                join dim_lifters l on l.lifter_id = m.lifter_id
+                where m.challenge_id = ?
+                order by l.lifter_name
+            """, [decision.scope_value])]
+            return Answer(Outcome.REFUSE, "\n".join([
+                (f"En vastaa: {lifter} ei kuulu haasteeseen {decision.scope_label}, "
+                 f"joten hanesta ei ole lukuja."),
+                "",
+                f"Haasteessa ovat: {', '.join(members)}",
+            ]), citation={"reason": "empty_result"})
+
+    return Answer(Outcome.REFUSE,
+                  f"En vastaa: haasteessa {decision.scope_label} ei ole yhtaan riviä, "
+                  f"josta {metric.label.lower()} voitaisiin laskea.",
+                  citation={"reason": "empty_result"})
 
 
 _SOURCE_LABEL = {

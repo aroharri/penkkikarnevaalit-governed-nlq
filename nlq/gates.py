@@ -69,6 +69,18 @@ class Decision:
     alternatives: list[str] = field(default_factory=list)
 
 
+def _dimension_labels(catalog: Catalog, metric: Metric) -> str:
+    """Human labels, not the catalogue's internal keys.
+
+    A reader who asked about a gym does not know that the system calls the
+    thing it CAN do "lifter" -- naming the internals in an error tells them
+    nothing they can act on.
+    """
+    dimensions = catalog.datasets[metric.dataset]["dimensions"]
+    return ", ".join(dimensions.get(d, {}).get("label", d).lower()
+                     for d in metric.filterable_dimensions)
+
+
 def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") -> Decision:
     """Run every gate in order. The first one that fires wins."""
 
@@ -97,8 +109,8 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
             Outcome.REFUSE,
             reason="scope_violation",
             message=(
-                f"Mittarit on maaritelty {metric.scope}-rajauksen sisalla. "
-                f"Kysymys ylittaa sen rajan: vastaus sisaltaisi muiden rivit."
+                "Luvut lasketaan aina yhden haasteen sisalla, joten en voi "
+                "vertailla haasteiden yli."
             ),
         )
 
@@ -111,8 +123,10 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                 Outcome.REFUSE,
                 reason="unknown_filter",
                 message=(
-                    f"Rajausta '{key}' ei ole sallittu mittarille {metric.name}. "
-                    f"Sallitut: {', '.join(metric.filterable_dimensions) or 'ei yhtaan'}"
+                    f"en osaa rajata lukua '{key}' mukaan. "
+                    + (f"Voin rajata vain naiden mukaan: {_dimension_labels(catalog, metric)}."
+                       if metric.filterable_dimensions
+                       else f"'{metric.label}' lasketaan koko haasteelle, sita ei voi rajata.")
                 ),
             )
 
@@ -142,8 +156,8 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                     Outcome.REFUSE,
                     reason="unknown_value",
                     message=(
-                        f"\"{value}\" ei ole datassa. "
-                        f"Tunnetut nostajat: {', '.join(lbl for _, lbl in known_values)}."
+                        f"{value} ei ole datassa.\n\n"
+                        f"Nostajat: {', '.join(lbl for _, lbl in known_values)}"
                     ),
                 )
             resolved_filters[key] = match
@@ -154,7 +168,7 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                 return Decision(
                     Outcome.REFUSE,
                     reason="unknown_value",
-                    message=f"Arvo \"{value}\" ei kuulu dimensioon '{key}'. Sallitut: {allowed}",
+                    message=f"'{value}' ei ole kelvollinen arvo. Vaihtoehdot: {allowed}",
                 )
             resolved_filters[key] = str(value)
 
@@ -163,7 +177,7 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
         return Decision(
             Outcome.CLARIFY,
             reason="weak_match",
-            message="En tunnistanut kysymysta riittavan varmasti mihinkaan mittariin.",
+            message="en tunnistanut kysymysta riittavan varmasti. Tarkoititko jotain naista?",
             alternatives=[c.metric for c in known[:3]],
         )
 
@@ -173,7 +187,7 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
         return Decision(
             Outcome.CLARIFY,
             reason="ambiguous",
-            message="Kysymys osuu useaan mittariin yhta hyvin. En valitse puolestasi.",
+            message="kysymys sopii useaan lukuun yhta hyvin, enka arvaa puolestasi.",
             alternatives=[c.metric for c in known[:3]],
         )
 
@@ -185,8 +199,7 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
             Outcome.CLARIFY,
             reason="missing_param",
             message=(
-                f"Mittari {metric.name} vaatii parametrin "
-                f"{', '.join(missing)}. Milta ajanjaksolta?"
+                "milta ajalta? Sano esimerkiksi 'viimeisen 30 paivan aikana'."
             ),
             metric=metric,
         )
@@ -210,8 +223,8 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                 Outcome.REFUSE,
                 reason="unknown_scope",
                 message=(
-                    f"Haastetta \"{requested}\" ei ole. "
-                    f"Tunnetut: {', '.join(lbl for _, lbl in scope_values)}."
+                    f"Haastetta {requested} ei ole.\n\n"
+                    f"Haasteet: {', '.join(lbl for _, lbl in scope_values)}"
                 ),
             )
         scope_key, scope_label, inferred = hit[0], hit[1], False
@@ -221,15 +234,14 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
         return Decision(
             Outcome.REFUSE,
             reason="no_scope_values",
-            message=f"Datassa ei ole yhtaan {metric.scope}-arvoa, joten mitaan ei voi rajata.",
+            message="datassa ei ole yhtaan haastetta, joten lukuja ei ole mista laskea.",
         )
     else:
         return Decision(
             Outcome.CLARIFY,
             reason="scope_ambiguous",
             message=(
-                f"Mika {metric.scope}? Mittari on rajattu sen sisalle, ja ilman rajausta "
-                f"vastaus sisaltaisi muiden rivit."
+                "mista haasteesta? Luvut lasketaan yhden haasteen sisalla."
             ),
             metric=metric,
             alternatives=[lbl for _, lbl in scope_values],

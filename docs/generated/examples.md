@@ -33,7 +33,7 @@ Rajaus: Testihaaste  (ainoa datassa -- ratkaistu automaattisesti)
 ```
 $ python -m nlq.cli "Miten Aadalla menee?"
 
-Tarvitsen tarkennuksen: En tunnistanut kysymysta riittavan varmasti mihinkaan mittariin.
+Tarvitsen tarkennuksen: en tunnistanut kysymysta riittavan varmasti. Tarkoititko jotain naista?
 
   1  lifter_current_1rm_kg          Nostajan nykyinen 1RM
   2  lifter_target_gap_kg           Paljonko nostajalta puuttuu omaan tavoitteeseen
@@ -83,5 +83,5 @@ Osaan nama mittarit:
 ```
 $ python -m nlq.cli "Kuka on vahvin kaikista kayttajista?"
 
-En vastaa: Mittarit on maaritelty challenge-rajauksen sisalla. Kysymys ylittaa sen rajan: vastaus sisaltaisi muiden rivit.
+En vastaa: Luvut lasketaan aina yhden haasteen sisalla, joten en voi vertailla haasteiden yli.
 ```
