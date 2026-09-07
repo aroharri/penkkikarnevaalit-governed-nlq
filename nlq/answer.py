@@ -90,12 +90,12 @@ def _answer(decision: Decision, catalog: Catalog, warehouse, as_of: str | None) 
         as_of=as_of,
     )
     rows = warehouse.run(sql, args)
+    if not rows:
+        return _empty_result(decision, catalog, warehouse)
 
     inferred = "  (ainoa datassa -- ratkaistu automaattisesti)" if decision.scope_was_inferred else ""
     lines = [f"Rajaus: {decision.scope_label}{inferred}", ""]
 
-    if not rows:
-        lines.append("  Ei riveja talla rajauksella.")
     for row in rows:
         label = " / ".join(str(v) for v in row[:-1])
         lines.append(f"  {label:<34}{_fmt(row[-1], metric.unit):>14}")
@@ -140,6 +140,36 @@ def _answer(decision: Decision, catalog: Catalog, warehouse, as_of: str | None) 
     lines.append(f"  Katalogi      {citation['source']}")
 
     return Answer(Outcome.ANSWER, "\n".join(lines), rows=rows, citation=citation)
+
+
+def _empty_result(decision: Decision, catalog: Catalog, warehouse) -> Answer:
+    """No rows is not a number, and must not be dressed as one.
+
+    An empty table under a citation reads as an answer -- the reader sees a
+    metric, a formula and a scope, and concludes the value is nothing. The
+    common cause is a filter that is valid on its own but empty in combination:
+    a real person who is not in this challenge, a real cost centre with no
+    postings in the period. Naming which half of the combination emptied it is
+    the difference between "no data" and "wrong question".
+    """
+    metric = decision.metric
+    lines = [(f"En vastaa: rajaus {decision.scope_label} ei sisalla yhtaan rivia "
+              f"mittarille {metric.name}.")]
+
+    lifter = decision.filters.get("lifter")
+    if lifter:
+        entity = catalog.entity(metric, "lifter")
+        exists = warehouse.run(
+            f"select count(*) from {entity['table']} "
+            f"where lower({entity['label_column']}) = lower(?)", [lifter])[0][0]
+        if exists:
+            lines.append(
+                f"\"{lifter}\" on datassa, mutta ei kuulu haasteeseen "
+                f"{decision.scope_label}. Mittari on rajattu haasteen sisalle, joten "
+                f"han ei nay siina -- eika tyhja tulos ole han nolla."
+            )
+    lines.append("En palauta nollaa enka tyhjaa taulukkoa -- molemmat nayttaisivat luvulta.")
+    return Answer(Outcome.REFUSE, "\n".join(lines), citation={"reason": "empty_result"})
 
 
 _SOURCE_LABEL = {

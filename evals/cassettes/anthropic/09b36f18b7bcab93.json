@@ -1,0 +1,17 @@
+{
+  "question": "Kuinka aktiivinen Bertta on ollut?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_sessions_last_n_days",
+        "confidence": 0.6,
+        "filters": {
+          "lifter": "Bertta"
+        }
+      }
+    ],
+    "crosses_scope": false
+  }
+}

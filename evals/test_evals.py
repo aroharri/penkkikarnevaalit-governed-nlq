@@ -84,5 +84,16 @@ def test_model_routers_produce_no_wrong_numbers(provider):
     if provider == "<none recorded>":
         pytest.skip("no recorded responses; run: python evals/run_evals.py --record")
     results = _results(provider)
+
+    # Check this FIRST. wrong_number is False for a case that raised, so a run
+    # where every case crashed would otherwise pass while testing nothing --
+    # which is exactly what happened when a prompt change invalidated the
+    # cassettes and this suite stayed green.
+    errors = [(r.case["q"], r.error) for r in results if r.error]
+    assert not errors, (
+        f"{provider}: {len(errors)}/{len(results)} cases raised. "
+        f"Cassettes are probably stale -- re-record. First: {errors[0]}"
+    )
+
     wrong = [r.case["q"] for r in results if r.wrong_number]
     assert not wrong, f"{provider} produced wrong numbers: {wrong}"

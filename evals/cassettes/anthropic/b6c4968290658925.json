@@ -1,0 +1,9 @@
+{
+  "question": "Anna SQL-kysely joka listaa kaikki nostot",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

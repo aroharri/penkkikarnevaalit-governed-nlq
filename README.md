@@ -133,32 +133,28 @@ describe what a program used to do; these cannot drift, because they are output.
 
 ## Reconciliation
 
-Five hand-picked examples are marketing. This is the check -- 20 questions, each
+Five hand-picked examples are marketing. This is the check -- 21 questions, each
 paired with what a careful analyst *should* do, run on every change
 ([evals/questions.yml](evals/questions.yml)):
 
 ```
                       osumat    tarkennukset    kieltaytymiset    VAARIA LUKUJA
-  Saantorouter         18/20             5/5              5/7              0
+  LLM: anthropic       20/21          3/4              9/9              0
+  Saantorouter         18/21          4/4              6/9              0
 ```
 
-Every provider with recordings gets a row. Record one and its row appears; the
-table shows no empty rows implying numbers nobody measured. **The interesting
-comparison is not the hit rate but what it does to the last column**: swap the
-model, and if the safety is really in the gates rather than in the model, the
-WRONG NUMBER column does not move. A weaker model makes the demonstration
-stronger, not weaker.
+Two routers with visibly different skill -- 20 versus 18, and 9 correct refusals
+versus 6 -- and **the same zero in the last column**. That is the architecture
+claim, measured rather than asserted: the model changes how often the right
+metric is chosen; it does not change what gets past the gates, because the gates
+are shared. A weaker router makes the demonstration stronger, not weaker.
 
-```
-                      osumat    tarkennukset    kieltaytymiset    VAARIA LUKUJA
-  LLM: anthropic         ?/20            ?/5              ?/7              ?
-  LLM: gemini            ?/20            ?/5              ?/7              ?
-  Saantorouter         18/20             5/5              5/7              0
-```
+Every provider with recordings gets a row, discovered from `evals/cassettes/`
+rather than hardcoded. Add one:
 
-> No model rows yet -- nothing has been recorded. One key and one command fills
-> them in permanently: `LLM_PROVIDER=gemini GEMINI_API_KEY=... python
-> evals/run_evals.py --record`.
+```bash
+LLM_PROVIDER=groq GROQ_API_KEY=... python evals/run_evals.py --record
+```
 
 **WRONG NUMBER is the column that matters**, not the hit rate. Hit rate can
 always be raised by guessing more. A wrong number is what reaches a reader and
@@ -166,8 +162,25 @@ gets believed. Two things count as one: answering when the correct response was
 a question or a refusal, and answering with a metric other than the one asked
 for.
 
-The two rule-router misses are both in the safe direction -- it asked where it
-should have refused.
+Every miss in both rows is in the safe direction -- asking or refusing where the
+expected answer was more forthcoming. None is a number.
+
+### What the reconciliation caught
+
+Three real defects, none of which the test suite would have found:
+
+1. **A wrong number.** The rule router answered *"Mikä on tavoite?"* with one of
+   the two competing goal figures. Fixed in the router; the question stays in
+   the set.
+2. **A gate ordering bug.** *"Miten Matilla menee?"* -- vague AND about nobody --
+   returned "please clarify", inviting the reader to rephrase a question that can
+   never be answered. Existence is a fact about the data; confidence is a
+   judgement about the question. Facts now run first.
+3. **A wrong expectation of mine.** I expected CLARIFY for a question about total
+   lifted volume. There is no volume metric, so refusing was correct and my
+   expectation was not. Changing it cost the rule router a hit -- the note in
+   `questions.yml` says so, because an expectation edited quietly to raise a
+   score is the exact failure this file exists to catch.
 
 ### What this does and does not prove
 

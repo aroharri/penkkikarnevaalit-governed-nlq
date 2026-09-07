@@ -1,0 +1,9 @@
+{
+  "question": "Enta Aada?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

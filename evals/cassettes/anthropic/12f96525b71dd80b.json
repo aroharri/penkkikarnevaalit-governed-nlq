@@ -1,0 +1,17 @@
+{
+  "question": "Paljonko Aadalta puuttuu omaan tavoitteeseen?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_target_gap_kg",
+        "confidence": 0.97,
+        "filters": {
+          "lifter": "Aada"
+        }
+      }
+    ],
+    "crosses_scope": false
+  }
+}

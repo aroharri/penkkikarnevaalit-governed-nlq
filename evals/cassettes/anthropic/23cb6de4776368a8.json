@@ -1,0 +1,9 @@
+{
+  "question": "Laske minulle keskiarvo kaikesta",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

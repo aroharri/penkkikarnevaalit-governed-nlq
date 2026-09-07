@@ -1,0 +1,9 @@
+{
+  "question": "Paljonko Aada painoi vuonna 2019?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

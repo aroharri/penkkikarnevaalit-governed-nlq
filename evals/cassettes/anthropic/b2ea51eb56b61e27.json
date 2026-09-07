@@ -1,0 +1,9 @@
+{
+  "question": "Kuka on vahvin jalkakyykyssa?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

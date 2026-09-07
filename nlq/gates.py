@@ -102,26 +102,7 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
             ),
         )
 
-    # Gate 3 -- the best match is not good enough to act on.
-    if top.confidence < WEAK_CONFIDENCE:
-        return Decision(
-            Outcome.CLARIFY,
-            reason="weak_match",
-            message="En tunnistanut kysymysta riittavan varmasti mihinkaan mittariin.",
-            alternatives=[c.metric for c in known[:3]],
-        )
-
-    # Gate 4 -- two candidates are too close to separate. This is the gate that
-    # catches "how is X doing?", where every reading is plausible.
-    if len(known) > 1 and (top.confidence - known[1].confidence) < TIE_GAP:
-        return Decision(
-            Outcome.CLARIFY,
-            reason="ambiguous",
-            message="Kysymys osuu useaan mittariin yhta hyvin. En valitse puolestasi.",
-            alternatives=[c.metric for c in known[:3]],
-        )
-
-    # Gate 5 -- filter keys must be declared on the metric.
+    # Gate 3 -- filter keys must be declared on the metric.
     for key in top.filters:
         if key == metric.scope:
             continue
@@ -135,10 +116,17 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                 ),
             )
 
-    # Gate 6 -- filter values must exist. Exact, case-insensitive, no fuzzy
+    # Gate 4 -- filter values must exist. Exact, case-insensitive, no fuzzy
     # matching: a near miss has to fail loudly. Returning an empty result or a
     # zero here would be the worst answer available, because both look like
     # numbers.
+    #
+    # This runs BEFORE the confidence gates on purpose. Whether a named person
+    # exists is a fact about the data; whether a question is clear is a
+    # judgement about the question. Facts first. Asked the other way round,
+    # "how is Matti doing?" -- vague AND about nobody -- came back as "please
+    # clarify", inviting the reader to rephrase a question that can never be
+    # answered.
     resolved_filters: dict[str, str] = {}
     for key, value in top.filters.items():
         if key == metric.scope:
@@ -169,6 +157,25 @@ def decide(proposal: Proposal, catalog: Catalog, warehouse, question: str = "") 
                     message=f"Arvo \"{value}\" ei kuulu dimensioon '{key}'. Sallitut: {allowed}",
                 )
             resolved_filters[key] = str(value)
+
+    # Gate 5 -- the best match is not good enough to act on.
+    if top.confidence < WEAK_CONFIDENCE:
+        return Decision(
+            Outcome.CLARIFY,
+            reason="weak_match",
+            message="En tunnistanut kysymysta riittavan varmasti mihinkaan mittariin.",
+            alternatives=[c.metric for c in known[:3]],
+        )
+
+    # Gate 6 -- two candidates are too close to separate. This is the gate that
+    # catches "how is X doing?", where every reading is plausible.
+    if len(known) > 1 and (top.confidence - known[1].confidence) < TIE_GAP:
+        return Decision(
+            Outcome.CLARIFY,
+            reason="ambiguous",
+            message="Kysymys osuu useaan mittariin yhta hyvin. En valitse puolestasi.",
+            alternatives=[c.metric for c in known[:3]],
+        )
 
     # Gate 7 -- a required parameter with no sensible default. A window is not
     # guessed, because "recently" means different things to different readers.

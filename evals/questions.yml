@@ -47,7 +47,7 @@
 - q: "Mika on Bertan nykyinen ykkosmaksimi?"
   expect: { outcome: ANSWER, metric: lifter_current_1rm_kg, filters: { lifter: Bertta } }
 
-# --------------------------------------------------------------- CLARIFY (5)
+# --------------------------------------------------------------- CLARIFY (4)
 
 - q: "Miten Aadalla menee?"
   expect: { outcome: CLARIFY }
@@ -75,15 +75,7 @@
     they never saw. The same argument as revenue meaning three things around
     one table.
 
-- q: "Montako kiloa Aada on nostanut yhteensa kaikissa treeneissa?"
-  expect: { outcome: CLARIFY }
-  note: >
-    Total lifted volume is not in the catalogue -- only current 1RM is tracked.
-    The trap is the word "yhteensa", which it shares with the crew total. A
-    keyword matcher is tempted to answer 200 kg here, which would be a
-    confident answer to a question nobody asked.
-
-# ---------------------------------------------------------------- REFUSE (7)
+# ---------------------------------------------------------------- REFUSE (9)
 
 - q: "Kuka on vahvin jalkakyykyssa?"
   expect: { outcome: REFUSE, reason: no_metric }
@@ -120,3 +112,27 @@
 - q: "Paljonko Aada painoi vuonna 2019?"
   expect: { outcome: REFUSE }
   note: Outside both the catalogue and the data's time range.
+
+- q: "Montako kiloa Aada on nostanut yhteensa kaikissa treeneissa?"
+  expect: { outcome: REFUSE }
+  note: >
+    Total lifted volume is not in the catalogue -- only current 1RM is tracked,
+    so refusing is correct. This expectation was CLARIFY until the reconciliation
+    disagreed with it: the model returned no candidates, and the model was right.
+    Changing an expectation to raise a score would be the exact failure this file
+    exists to catch, so note what it cost -- the rule router answers CLARIFY here
+    and now scores this as a miss, where before it scored a hit.
+
+    The trap remains: "yhteensa" is shared with the crew total, and a keyword
+    matcher is tempted to answer 200 kg -- a confident answer to a question
+    nobody asked.
+
+- q: "Mika on Daavidin nykyinen ykkosmaksimi?"
+  expect: { outcome: REFUSE }
+  note: >
+    Daavid is a real person in the data who belongs to no challenge. Every
+    metric is scoped, so the query matches nothing -- and an empty table under a
+    citation reads as an answer: the reader sees a metric, a formula and a
+    scope, and concludes the value is zero. The ledger equivalent is a real cost
+    centre with no postings in the period. Refusing names which half of the
+    combination came up empty.

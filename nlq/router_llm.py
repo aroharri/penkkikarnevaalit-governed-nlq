@@ -60,7 +60,42 @@ Rules:
 - Set crosses_scope to true when the question deliberately asks across all
   challenges or all users rather than within one challenge.
 - Only include filters, params and group_by that the metric declares.
-- Omit params you were not given. Do not invent a time window."""
+- Omit params you were not given. Do not invent a time window.
+- Copy filter values EXACTLY from the "Known values" list. Never invent a name
+  and never guess its base form: Finnish inflects, and "Bertan" is the genitive
+  of both Berta and Bertta. If a name in the question is not in that list,
+  return no candidates -- the person is not in the data, and saying so is the
+  correct answer."""
+
+
+# Cap on the entity values inlined into the prompt. Small dimensions (four
+# lifters, one challenge) belong there: the model must pick a name rather than
+# reconstruct it, because guessing a base form is how "Bertan" became "Berta".
+# A dimension with thousands of members would need a lookup tool instead --
+# see docs/MISSA-TAMA-HAJOAA.md.
+MAX_INLINE_VALUES = 50
+
+
+def entity_vocabulary(catalog: Catalog, warehouse) -> str:
+    """The names a question may use, in the spelling the data holds.
+
+    Resolving a name belongs in the proposal; verifying it belongs in the gate.
+    Without this the model had to invent a value for the gate to reject, which
+    is the worst possible split of that work.
+    """
+    seen, lines = set(), []
+    for metric in catalog.metrics.values():
+        for name, entity in catalog.datasets[metric.dataset]["entities"].items():
+            if name in seen:
+                continue
+            seen.add(name)
+            values = [v for _, v in warehouse.entity_values(
+                entity["table"], entity["key"], entity["label_column"])]
+            if len(values) > MAX_INLINE_VALUES:
+                lines.append(f"  {name}: ({len(values)} values, too many to list)")
+            else:
+                lines.append(f"  {name}: {', '.join(values)}")
+    return "Known values (copy these spellings exactly):\n" + "\n".join(lines)
 
 
 def catalog_prompt(catalog: Catalog) -> str:
@@ -110,7 +145,7 @@ def recorded_providers() -> list[str]:
 def route(question: str, catalog: Catalog, warehouse, *, record: bool = False,
           offline: bool = False, provider: str | None = None) -> Proposal:
     prov = providers.get(provider) if provider else providers.selected()
-    catalog_text = catalog_prompt(catalog)
+    catalog_text = catalog_prompt(catalog) + "\n\n" + entity_vocabulary(catalog, warehouse)
     cassette = _cassette_path(question, catalog_text, prov)
 
     if cassette.exists() and not record:

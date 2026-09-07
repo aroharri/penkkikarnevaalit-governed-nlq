@@ -1,0 +1,9 @@
+{
+  "question": "Montako kiloa Aada on nostanut yhteensa kaikissa treeneissa?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}

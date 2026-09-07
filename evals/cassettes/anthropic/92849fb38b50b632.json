@@ -1,0 +1,17 @@
+{
+  "question": "Kuka on vahvin kaikista kayttajista?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_current_1rm_kg",
+        "confidence": 0.55,
+        "group_by": [
+          "lifter"
+        ]
+      }
+    ],
+    "crosses_scope": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "question": "Paljonko jasenten omat tavoitteet ovat yhteensa?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "crew_member_target_sum_kg",
+        "confidence": 0.95
+      }
+    ],
+    "crosses_scope": false
+  }
+}

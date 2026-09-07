@@ -1,0 +1,20 @@
+{
+  "question": "Montako kertaa Bertta on treenannut viimeisen 30 paivan aikana?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_sessions_last_n_days",
+        "confidence": 0.97,
+        "filters": {
+          "lifter": "Bertta"
+        },
+        "params": {
+          "days": 30
+        }
+      }
+    ],
+    "crosses_scope": false
+  }
+}

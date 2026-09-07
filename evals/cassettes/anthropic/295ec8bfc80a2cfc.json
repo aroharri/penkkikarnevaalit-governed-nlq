@@ -1,0 +1,17 @@
+{
+  "question": "Mika on Bertan nykyinen ykkosmaksimi?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_current_1rm_kg",
+        "confidence": 0.95,
+        "filters": {
+          "lifter": "Bertta"
+        }
+      }
+    ],
+    "crosses_scope": false
+  }
+}

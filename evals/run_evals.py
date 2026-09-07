@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -202,6 +203,10 @@ def write_examples(results: list[Result], router_label: str) -> None:
 
 
 def main() -> int:
+    # Recording needs a key, and a key belongs in .env rather than in a shell
+    # command that lands in history. .env is git-ignored.
+    load_dotenv(REPO / ".env")
+
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")

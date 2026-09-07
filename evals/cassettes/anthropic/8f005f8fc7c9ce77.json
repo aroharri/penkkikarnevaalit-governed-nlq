@@ -1,0 +1,31 @@
+{
+  "question": "Miten Aadalla menee?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [
+      {
+        "metric": "lifter_current_1rm_kg",
+        "confidence": 0.4,
+        "filters": {
+          "lifter": "Aada"
+        }
+      },
+      {
+        "metric": "lifter_target_gap_kg",
+        "confidence": 0.4,
+        "filters": {
+          "lifter": "Aada"
+        }
+      },
+      {
+        "metric": "lifter_sessions_last_n_days",
+        "confidence": 0.3,
+        "filters": {
+          "lifter": "Aada"
+        }
+      }
+    ],
+    "crosses_scope": false
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "question": "Mika on Aadan painoindeksi?",
+  "provider": "anthropic",
+  "model": "claude-sonnet-5",
+  "response": {
+    "candidates": [],
+    "crosses_scope": false
+  }
+}
