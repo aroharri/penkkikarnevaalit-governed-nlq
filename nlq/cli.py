@@ -29,17 +29,23 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     ap = argparse.ArgumentParser(prog="nlq", description="Governed NLQ over a locked metric catalogue")
     ap.add_argument("question", nargs="?", help="Question in plain language")
-    ap.add_argument("--router", choices=["llm", "rules"], default=None,
-                    help="Default: llm when ANTHROPIC_API_KEY is set, otherwise rules")
+    ap.add_argument("--router", default=None,
+                    help="rules | llm | a provider name (anthropic, gemini, groq, xai, "
+                         "openrouter, ollama). Default: llm when any provider has a key, "
+                         "otherwise rules.")
     ap.add_argument("--metric", help="Name a metric directly. Skips the router, not the gates.")
     ap.add_argument("--as-of", help="Anchor date for time windows (YYYY-MM-DD). Default: today.")
     ap.add_argument("--json", action="store_true", help="Machine-readable output, citation included")
     ap.add_argument("--list", action="store_true", help="List the catalogue and exit")
+    ap.add_argument("--providers", action="store_true", help="List LLM providers and exit")
     ap.add_argument("--record", action="store_true", help="Call the API and record the response")
     args = ap.parse_args(argv)
 
     if args.list:
         return _print_catalog()
+
+    if args.providers:
+        return _print_providers()
 
     if not args.question:
         ap.error("a question is required (or use --list)")
@@ -76,6 +82,22 @@ def _print_catalog() -> int:
         print(f"      {m.label}   [{m.grain}, {m.unit}, scope: {m.scope}]")
         if m.requires_params:
             print(f"      requires: {', '.join(m.requires_params)}")
+    return 0
+
+
+def _print_providers() -> int:
+    from nlq import providers
+    from nlq.router_llm import recorded_providers
+
+    recorded = set(recorded_providers())
+    print("Provider     key set  recorded  model")
+    for p in providers.PROVIDERS.values():
+        print(f"  {p.name:<11}{'yes' if p.has_key else ' - ':>6}"
+              f"{'yes' if p.name in recorded else ' - ':>10}   {p.model}")
+        if p.note:
+            print(f"      {p.note}")
+    print()
+    print("The rule router needs no key at all:  --router rules")
     return 0
 
 

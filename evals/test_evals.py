@@ -2,10 +2,12 @@
 The reconciliation set as a test, so it runs on every change rather than when
 somebody remembers to look.
 
-Never calls the API. The rule router is deterministic by construction; the LLM
-router replays recorded responses from cassettes/. If no cassettes have been
-recorded, those cases skip with a message rather than quietly passing -- a
-suite that is green because it tested nothing is worse than a red one.
+Never calls the API. The rule router is deterministic by construction; model
+routers replay recorded responses from cassettes/<provider>/. Providers are
+discovered from what has been recorded, so a second model adds a test case for
+free. With nothing recorded, those cases skip with a message rather than
+quietly passing -- a suite that is green because it tested nothing is worse
+than a red one.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from evals.run_evals import QUESTIONS, run_router
+from nlq.router_llm import recorded_providers
 
 CASSETTES = Path(__file__).resolve().parent / "cassettes"
 CASES = yaml.safe_load(QUESTIONS.read_text(encoding="utf-8"))
@@ -69,11 +72,17 @@ def test_rule_router_hit_rate_does_not_regress(rules_results):
     assert hits >= 18, f"hit rate fell to {hits}/{len(rules_results)}"
 
 
-@pytest.mark.skipif(not list(CASSETTES.glob("*.json")),
-                    reason="no recorded LLM responses; run: python evals/run_evals.py --record")
-def test_llm_router_produces_no_wrong_numbers():
-    """Same gates, different router. If this ever fails while the rule router
-    passes, the safety was coming from the model rather than from the gates."""
-    results = _results("llm")
+@pytest.mark.parametrize("provider", recorded_providers() or ["<none recorded>"])
+def test_model_routers_produce_no_wrong_numbers(provider):
+    """Same gates, a different brain. Runs once per provider that has
+    recordings, so adding a second model adds a case here for free.
+
+    If this ever fails while the rule router passes, the safety was coming from
+    the model rather than from the gates -- which would make the repo's central
+    claim false, and is exactly what this test exists to detect.
+    """
+    if provider == "<none recorded>":
+        pytest.skip("no recorded responses; run: python evals/run_evals.py --record")
+    results = _results(provider)
     wrong = [r.case["q"] for r in results if r.wrong_number]
-    assert not wrong, f"wrong numbers: {wrong}"
+    assert not wrong, f"{provider} produced wrong numbers: {wrong}"

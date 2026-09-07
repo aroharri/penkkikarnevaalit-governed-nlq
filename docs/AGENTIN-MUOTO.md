@@ -29,6 +29,26 @@ Agenttien välillä muuttuu **katalogi**. Ei prompt, ei "rooli", ei persoona.
 Jos kaksi agenttia eroaa toisistaan vain kehotteen sävyllä, ne ovat sama
 agentti kahdesti.
 
+### Ja tämä on tässä repossa osoitettu, ei vain väitetty
+
+Väite *"kielimalli on ohuin ja vaihdettavin osa"* olisi helppo kirjoittaa ja
+jättää siihen. `nlq/providers.py` tekee siitä testattavan: sama router puhuu
+Anthropicille, Geminille, Groqille, xAI:lle, OpenRouterille tai paikalliselle
+Ollamalle, ja **vain kuljetus vaihtuu** — kehote, jäsennys ja kaikki kahdeksan
+porttia ovat identtisiä.
+
+Täsmäytystaulukko on se todiste. Jokainen tarjoaja saa oman rivinsä, ja
+kiinnostava sarake ei ole osumatarkkuus vaan **VÄÄRIÄ LUKUJA**:
+
+- Jos se pysyy nollassa mallista riippumatta, turva on porteissa.
+- Jos jokin malli tuottaa väärän luvun jota toinen ei tuota, turva tuli
+  mallista — ja koko väite on eri.
+
+Heikompi malli tekee osoituksesta **vahvemman**, ei heikomman: matalampi
+osumatarkkuus ja silti nolla väärää lukua on täsmälleen se, mitä väite
+ennustaa. Siksi oletusmallit ovat pieniä ja nopeita eivätkä suurimpia
+saatavilla olevia.
+
 ## Lähdeviite on tyyppijärjestelmä, ei kohteliaisuus
 
 Tämä ratkaisee sen, toimiiko useamman agentin ketju lainkaan.

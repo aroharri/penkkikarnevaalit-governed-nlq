@@ -14,7 +14,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-llm = ["anthropic>=0.40"]
+# Only Anthropic needs an SDK. Every OpenAI-compatible provider (Gemini,
+# Groq, xAI, OpenRouter, Ollama) is reached with urllib from the standard
+# library -- one POST of plain JSON does not justify a dependency.
+anthropic = ["anthropic>=0.40"]
 dev = ["pytest>=8.0", "ruff>=0.4"]
 
 [tool.setuptools]

@@ -34,6 +34,7 @@ from nlq import answer as answer_mod
 from nlq import ask as ask_mod
 from nlq.db import Warehouse
 from nlq.gates import decide
+from nlq.router_llm import recorded_providers
 from semantic import catalog as catalog_mod
 from warehouse.build import build
 
@@ -48,7 +49,17 @@ GENERATED = REPO / "docs" / "generated" / "examples.md"
 # Frozen anchor so "the last 30 days" means the same thing every run.
 AS_OF = "2026-06-01"
 
-ROUTERS = [("llm", "LLM-router"), ("rules", "Saantorouter")]
+def routers(record_provider: str | None = None) -> list[tuple[str, str]]:
+    """One row per provider that has recordings, plus the rule router.
+
+    Discovered from evals/cassettes/ rather than hardcoded: record a provider
+    and its row appears; record none and the table shows only the rule router,
+    with no empty rows implying numbers nobody measured.
+    """
+    names = list(recorded_providers())
+    if record_provider and record_provider not in names:
+        names.append(record_provider)
+    return [(n, f"LLM: {n}") for n in names] + [("rules", "Saantorouter")]
 
 
 class Result:
@@ -107,14 +118,14 @@ def run_router(router: str, cases: list[dict], record: bool) -> list[Result]:
     return results
 
 
-def scorecard(by_router: dict[str, list[Result]]) -> str:
+def scorecard(by_router: dict[str, list[Result]], router_list) -> str:
     lines = [
         "Aineisto: tests/fixtures  (jaadytetty)      Tallenteet: evals/cassettes",
         f"Kysymyksia: {len(next(iter(by_router.values())))}",
         "",
         f"  {'':<16}{'osumat':>10}{'tarkennukset':>16}{'kieltaytymiset':>18}{'VAARIA LUKUJA':>17}",
     ]
-    for key, label in ROUTERS:
+    for key, label in router_list:
         rs = by_router.get(key)
         if rs is None:
             continue
@@ -196,12 +207,23 @@ def main() -> int:
             stream.reconfigure(encoding="utf-8", errors="replace")
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--router", choices=["llm", "rules", "both"], default="both")
+    ap.add_argument("--router", default="all",
+                    help="all | rules | a provider name (anthropic, gemini, groq, ...)")
     ap.add_argument("--record", action="store_true", help="Call the API and record responses")
     args = ap.parse_args()
 
     cases = yaml.safe_load(QUESTIONS.read_text(encoding="utf-8"))
-    wanted = [k for k, _ in ROUTERS] if args.router == "both" else [args.router]
+
+    # When recording, the provider comes from LLM_PROVIDER (or the one key that
+    # is set), so a first recording run has a row even before any cassette
+    # exists.
+    record_provider = None
+    if args.record:
+        from nlq import providers
+        record_provider = args.router if args.router not in ("all", "rules") else providers.selected().name
+
+    router_list = routers(record_provider)
+    wanted = [k for k, _ in router_list] if args.router == "all" else [args.router]
 
     by_router: dict[str, list[Result]] = {}
     for key in wanted:
@@ -210,16 +232,18 @@ def main() -> int:
         except LookupError as exc:
             print(f"  {key}: skipped -- {exc}\n")
 
-    print(scorecard(by_router))
+    print(scorecard(by_router, router_list))
 
-    for key, label in ROUTERS:
+    for key, label in router_list:
         if key in by_router:
             print(f"\n{label} -- poikkeamat:")
             print(misses(by_router[key]))
 
-    example_source = by_router.get("llm") or by_router.get("rules")
+    # Prefer a model-routed run for the README examples; fall back to rules.
+    llm_key = next((k for k, _ in router_list if k != "rules" and k in by_router), None)
+    example_source = by_router.get(llm_key) if llm_key else by_router.get("rules")
     if example_source:
-        label = "LLM" if "llm" in by_router else "saantopohjainen"
+        label = llm_key or "saantopohjainen"
         write_examples(example_source, label)
         print(f"\n  Kirjoitettu: {GENERATED.relative_to(REPO)}")
 

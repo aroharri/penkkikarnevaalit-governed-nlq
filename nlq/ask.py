@@ -2,25 +2,26 @@
 
 from __future__ import annotations
 
-import os
-
 from nlq import answer as answer_mod
-from nlq import router_llm, router_rules
+from nlq import providers, router_llm, router_rules
 from nlq.db import Warehouse
 from nlq.gates import Candidate, Proposal, decide
 from semantic import catalog as catalog_mod
 
 
 def default_router() -> str:
-    """LLM when a key is present, rules otherwise, so a fresh clone still runs."""
-    return "llm" if os.environ.get("ANTHROPIC_API_KEY") else "rules"
+    """LLM when some provider has a key, rules otherwise, so a fresh clone runs."""
+    return "llm" if any(p.has_key for p in providers.PROVIDERS.values()) else "rules"
 
 
 def route(question: str, cat, warehouse, router: str = "rules", *,
           record: bool = False, offline: bool = False) -> Proposal:
-    if router == "llm":
-        return router_llm.route(question, cat, warehouse, record=record, offline=offline)
-    return router_rules.route(question, cat, warehouse)
+    """`router` is either "rules" or a provider name ("llm" picks one by key)."""
+    if router == "rules":
+        return router_rules.route(question, cat, warehouse)
+    provider = None if router == "llm" else router
+    return router_llm.route(question, cat, warehouse, record=record, offline=offline,
+                            provider=provider)
 
 
 def ask(question: str, *, router: str = "rules", catalog_dir=None, db_path=None,

@@ -133,19 +133,32 @@ describe what a program used to do; these cannot drift, because they are output.
 
 ## Reconciliation
 
-Five hand-picked examples are marketing. This is the check — 20 questions, each
+Five hand-picked examples are marketing. This is the check -- 20 questions, each
 paired with what a careful analyst *should* do, run on every change
 ([evals/questions.yml](evals/questions.yml)):
 
 ```
                       osumat    tarkennukset    kieltaytymiset    VAARIA LUKUJA
-  LLM-router             -/20            -/5              -/7                -
-  Saantorouter         18/20             5/5              5/7                0
+  Saantorouter         18/20             5/5              5/7              0
 ```
 
-> The LLM row is empty because no responses have been recorded yet. Record them
-> with an API key and `python evals/run_evals.py --record`; the numbers then
-> appear here and in CI without touching the network again.
+Every provider with recordings gets a row. Record one and its row appears; the
+table shows no empty rows implying numbers nobody measured. **The interesting
+comparison is not the hit rate but what it does to the last column**: swap the
+model, and if the safety is really in the gates rather than in the model, the
+WRONG NUMBER column does not move. A weaker model makes the demonstration
+stronger, not weaker.
+
+```
+                      osumat    tarkennukset    kieltaytymiset    VAARIA LUKUJA
+  LLM: anthropic         ?/20            ?/5              ?/7              ?
+  LLM: gemini            ?/20            ?/5              ?/7              ?
+  Saantorouter         18/20             5/5              5/7              0
+```
+
+> No model rows yet -- nothing has been recorded. One key and one command fills
+> them in permanently: `LLM_PROVIDER=gemini GEMINI_API_KEY=... python
+> evals/run_evals.py --record`.
 
 **WRONG NUMBER is the column that matters**, not the hit rate. Hit rate can
 always be raised by guessing more. A wrong number is what reaches a reader and
@@ -153,7 +166,7 @@ gets believed. Two things count as one: answering when the correct response was
 a question or a refusal, and answering with a metric other than the one asked
 for.
 
-The two rule-router misses are both in the safe direction — it asked where it
+The two rule-router misses are both in the safe direction -- it asked where it
 should have refused.
 
 ### What this does and does not prove
