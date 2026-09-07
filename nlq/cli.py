@@ -8,6 +8,7 @@ Command line entry point.
     python -m nlq.cli --list                              # one line per metric
     python -m nlq.cli --show crew_total_1rm_kg            # one definition in full
     python -m nlq.cli --show all                          # every definition
+    python -m nlq.cli                                     # interactive session
 """
 
 from __future__ import annotations
@@ -42,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--show", metavar="METRIC",
                     help="Full definition of one metric, or 'all' for every metric. "
                          "Same fields an answer cites, without having to invent a question first.")
+    ap.add_argument("--repl", action="store_true",
+                    help="Interactive session. Also the default when no question is given.")
     ap.add_argument("--providers", action="store_true", help="List LLM providers and exit")
     ap.add_argument("--record", action="store_true", help="Call the API and record the response")
     args = ap.parse_args(argv)
@@ -55,8 +58,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.providers:
         return _print_providers()
 
-    if not args.question:
-        ap.error("a question is required (or use --list / --show)")
+    # No question and no flag means the reader wants to explore, not to have
+    # argparse explain itself.
+    if args.repl or not args.question:
+        from nlq import repl
+        return repl.run(router=args.router, as_of=args.as_of)
 
     router = args.router or ask_mod.default_router()
     result, decision, _proposal = ask_mod.ask(

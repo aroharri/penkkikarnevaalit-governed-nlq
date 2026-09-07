@@ -33,6 +33,7 @@ sys.path.insert(0, str(REPO))
 
 from nlq import answer as answer_mod
 from nlq import ask as ask_mod
+from nlq import providers, router_llm
 from nlq.db import Warehouse
 from nlq.gates import decide
 from nlq.router_llm import recorded_providers
@@ -117,6 +118,37 @@ def run_router(router: str, cases: list[dict], record: bool) -> list[Result]:
             except Exception as exc:  # noqa: BLE001 - a crash must not read as a pass
                 results.append(Result(case, None, None, error=exc))
     return results
+
+
+def cassette_report(cases, provider: str) -> str:
+    """Which recordings this question set actually replays, and what is left over.
+
+    Reports; never deletes. An earlier version of this check compared absolute
+    paths against relative ones, matched nothing, and read "nothing matches" as
+    "delete everything" -- the same mistake as treating an empty result as an
+    answer, which is what the rest of this repo exists to prevent. A destructive
+    step on a suspicious comparison is not a tidy-up, it is a data loss.
+    """
+    cat = catalog_mod.load()
+    build(str(FIXTURE_DB), str(FIXTURE_ROOT), quiet=True)
+    prov = providers.get(provider)
+
+    with Warehouse(str(FIXTURE_DB)) as wh:
+        text = (router_llm.catalog_prompt(cat) + "\n\n"
+                + router_llm.entity_vocabulary(cat, wh))
+        live = {router_llm._cassette_path(c["q"], text, prov).resolve() for c in cases}
+
+    folder = router_llm.CASSETTE_DIR / provider
+    on_disk = {p.resolve() for p in folder.glob("*.json")} if folder.exists() else set()
+    used, stale, missing = live & on_disk, on_disk - live, live - on_disk
+
+    line = f"  {provider:<14}{len(used)}/{len(cases)} kaytossa"
+    if missing:
+        line += f", {len(missing)} puuttuu"
+    if stale:
+        line += (f", {len(stale)} ylimaaraista (nauhoitettu eri katalogilla tai "
+                 f"eri datalla -- ei kayteta)")
+    return line
 
 
 def scorecard(by_router: dict[str, list[Result]], router_list) -> str:
@@ -238,6 +270,12 @@ def main() -> int:
             print(f"  {key}: skipped -- {exc}\n")
 
     print(scorecard(by_router, router_list))
+
+    recorded = [k for k, _ in router_list if k != "rules"]
+    if recorded:
+        print("\nTallenteet:")
+        for key in recorded:
+            print(cassette_report(cases, key))
 
     for key, label in router_list:
         if key in by_router:

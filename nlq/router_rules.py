@@ -92,8 +92,12 @@ def route(question: str, catalog: Catalog, warehouse) -> Proposal:
         for _, label in warehouse.entity_values(
             lifter_entity["table"], lifter_entity["key"], lifter_entity["label_column"]
         ):
-            # Match the name stem so Finnish inflections ("Iiriksen") still hit.
-            if _fold(label)[:4] in q:
+            # Match the name stem at a WORD BOUNDARY so Finnish inflections
+            # ("Reinolla", "Kallen") still hit while a name that merely contains
+            # the stem does not: a bare substring test read "Pekalla" as Kalle,
+            # inventing a person the question never mentioned. Same failure as a
+            # model guessing a base form, one layer down.
+            if re.search(r"\b" + re.escape(_fold(label)[:4]), q):
                 named_lifter = label
                 break
 

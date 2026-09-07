@@ -114,7 +114,20 @@ täydellisen lähdeviitteen alla, ja lukija päättelisi arvon olevan nolla.
 
 ---
 
-## 3. Miltä kolme lopputulosta näyttävät
+## 3. Kokeile itse
+
+```bash
+python -m nlq.cli          # interaktiivinen istunto, ei argumentteja
+```
+
+`:help` listaa komennot ja muutaman kysymyksen, jotka osuvat eri portteihin.
+`:router rules` vaihtaa avaimettomaan versioon kesken istunnon, jolloin saman
+kysymyksen voi kysyä molemmilla peräkkäin. `:show <mittari>` näyttää
+määritelmän ennen kuin luottaa lukuun.
+
+---
+
+## 4. Miltä kolme lopputulosta näyttävät
 
 **Vastaus** — huomaa rajaus ensimmäisellä rivillä ja jako kahteen varmuusasteeseen:
 
@@ -163,7 +176,7 @@ En palauta nollaa enka tyhjaa taulukkoa -- molemmat nayttaisivat luvulta.
 
 ---
 
-## 4. Missä mikäkin vaihe elää
+## 5. Missä mikäkin vaihe elää
 
 | Vaihe | Tiedosto | Riviä |
 |---|---|---|
@@ -173,7 +186,8 @@ En palauta nollaa enka tyhjaa taulukkoa -- molemmat nayttaisivat luvulta.
 | Mallin valinta ja kuljetus | `nlq/providers.py`, `nlq/router_llm.py` | ~330 |
 | Avaimeton varareitti | `nlq/router_rules.py` | ~140 |
 | **Portit** | `nlq/gates.py` | ~250 |
-| Vastaus ja lähdeviite | `nlq/answer.py` | ~215 |
+| Vastaus ja lähdeviite | `nlq/answer.py` | ~220 |
+| Interaktiivinen istunto | `nlq/repl.py` | ~150 |
 | Täsmäytys | `evals/questions.yml`, `evals/run_evals.py` | ~140 + 240 |
 
 Huomaa suhde: **katalogi ja portit ovat repon sisältö.** Kielimallia koskeva
@@ -182,7 +196,7 @@ koodi on kuljetuskerros, ja se on tarkoituksella vaihdettavissa —
 
 ---
 
-## 5. Mitä tämä ketju takaa — ja mitä ei
+## 6. Mitä tämä ketju takaa — ja mitä ei
 
 **Takaa:** ulos tuleva luku on määritelty mittari, oikein laskettuna,
 täydellisellä lähdeviitteellä ja pakollisella rajauksella. Selvästi

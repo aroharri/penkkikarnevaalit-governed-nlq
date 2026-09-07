@@ -14,9 +14,15 @@ is the thinnest, most replaceable part of an agent, and the reconciliation
 table is what turns that claim into evidence -- routers differ in how often
 they pick the right metric, and the WRONG NUMBER column stays where it is.
 
-Responses are cached to evals/cassettes/<provider>/, keyed by question,
-catalogue, provider and model. Tests replay from the cache and never reach the
-network: a test whose result changes between runs is not a test.
+Responses are recorded to evals/cassettes/<provider>/ by an explicit
+--record, keyed by question, catalogue, provider and model. Tests replay those
+recordings and never reach the network: a test whose result changes between
+runs is not a test.
+
+An ordinary question is answered and forgotten rather than cached. Caching it
+would make the directory a cache and a test fixture at once, and that ambiguity
+is how an ad-hoc question ended up committed as part of the reconciliation set,
+recorded against different data than every other entry.
 """
 
 from __future__ import annotations
@@ -158,12 +164,17 @@ def route(question: str, catalog: Catalog, warehouse, *, record: bool = False,
         )
     else:
         payload = _call_api(question, catalog_text, prov)
-        cassette.parent.mkdir(parents=True, exist_ok=True)
-        cassette.write_text(
-            json.dumps({"question": question, "provider": prov.name, "model": prov.model,
-                        "response": payload}, indent=2),
-            encoding="utf-8",
-        )
+        # Only an explicit --record writes. An ordinary question is answered and
+        # forgotten: caching it here would quietly mix ad-hoc questions into the
+        # reconciliation set, and a recording made against different data than
+        # the rest is worse than no recording at all.
+        if record:
+            cassette.parent.mkdir(parents=True, exist_ok=True)
+            cassette.write_text(
+                json.dumps({"question": question, "provider": prov.name, "model": prov.model,
+                            "response": payload}, indent=2),
+                encoding="utf-8",
+            )
 
     return _to_proposal(payload)
 

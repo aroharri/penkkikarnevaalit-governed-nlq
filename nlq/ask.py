@@ -24,20 +24,33 @@ def route(question: str, cat, warehouse, router: str = "rules", *,
                             provider=provider)
 
 
+def answer_question(question: str, cat, warehouse, *, router: str = "rules",
+                    as_of: str | None = None, force_metric: str | None = None,
+                    record: bool = False, offline: bool = False,
+                    metric_hint: str = answer_mod.CLI_HINT):
+    """Question -> proposal -> gates -> answer, against an already-open warehouse.
+
+    Split out from ask() so a session asking many questions opens the catalogue
+    and the database once rather than once per question.
+    """
+    if force_metric:
+        # --metric skips the router, not the gates. Naming a metric by hand is
+        # allowed; bypassing scope or value checks is not.
+        proposal = Proposal(candidates=[Candidate(metric=force_metric, confidence=1.0)],
+                            raw={"router": "manual"})
+    else:
+        proposal = route(question, cat, warehouse, router, record=record, offline=offline)
+
+    decision = decide(proposal, cat, warehouse, question)
+    result = answer_mod.build(decision, cat, warehouse, as_of=as_of, metric_hint=metric_hint)
+    return result, decision, proposal
+
+
 def ask(question: str, *, router: str = "rules", catalog_dir=None, db_path=None,
         as_of: str | None = None, force_metric: str | None = None,
         record: bool = False, offline: bool = False):
-    """Full path: question -> proposal -> gates -> answer."""
+    """One question, opening and closing everything around it."""
     cat = catalog_mod.load(catalog_dir) if catalog_dir else catalog_mod.load()
     with Warehouse(db_path) as wh:
-        if force_metric:
-            # --metric skips the router, not the gates. Naming a metric by hand
-            # is allowed; bypassing scope or value checks is not.
-            proposal = Proposal(candidates=[Candidate(metric=force_metric, confidence=1.0)],
-                                raw={"router": "manual"})
-        else:
-            proposal = route(question, cat, wh, router, record=record, offline=offline)
-
-        decision = decide(proposal, cat, wh, question)
-        result = answer_mod.build(decision, cat, wh, as_of=as_of)
-        return result, decision, proposal
+        return answer_question(question, cat, wh, router=router, as_of=as_of,
+                               force_metric=force_metric, record=record, offline=offline)

@@ -139,6 +139,7 @@ are real. [docs/rajaus.md](docs/rajaus.md).
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
 python warehouse/build.py
+python -m nlq.cli                              # interactive session
 python -m nlq.cli --list                       # one line per metric
 python -m nlq.cli --show crew_total_1rm_kg     # one definition in full
 python -m nlq.cli --show all                   # every definition

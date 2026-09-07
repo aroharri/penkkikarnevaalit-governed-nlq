@@ -38,11 +38,19 @@ class Answer:
         }
 
 
-def build(decision: Decision, catalog: Catalog, warehouse, as_of: str | None = None) -> Answer:
+# How to name a metric by hand. Differs between the one-shot CLI and an
+# interactive session, and advice that cannot be followed where it is read is
+# worse than none.
+CLI_HINT = 'python -m nlq.cli --metric {metric} "..."'
+REPL_HINT = ":metric {metric}"
+
+
+def build(decision: Decision, catalog: Catalog, warehouse, as_of: str | None = None,
+          metric_hint: str = CLI_HINT) -> Answer:
     if decision.outcome is Outcome.REFUSE:
         return _refusal(decision, catalog)
     if decision.outcome is Outcome.CLARIFY:
-        return _clarification(decision, catalog)
+        return _clarification(decision, catalog, metric_hint)
     return _answer(decision, catalog, warehouse, as_of)
 
 
@@ -63,7 +71,7 @@ def _refusal(decision: Decision, catalog: Catalog) -> Answer:
     return Answer(Outcome.REFUSE, "\n".join(lines), citation={"reason": decision.reason})
 
 
-def _clarification(decision: Decision, catalog: Catalog) -> Answer:
+def _clarification(decision: Decision, catalog: Catalog, metric_hint: str) -> Answer:
     lines = [f"Tarvitsen tarkennuksen: {decision.message}"]
     if decision.alternatives:
         lines.append("")
@@ -75,7 +83,7 @@ def _clarification(decision: Decision, catalog: Catalog) -> Answer:
     if decision.reason == "ambiguous":
         lines.append("")
         lines.append("En valitse puolestasi. Kysy tarkemmin, tai nimea mittari suoraan:")
-        lines.append(f"  python -m nlq.cli --metric {decision.alternatives[0]} \"...\"")
+        lines.append("  " + metric_hint.format(metric=decision.alternatives[0]))
     return Answer(Outcome.CLARIFY, "\n".join(lines), citation={"reason": decision.reason})
 
 
